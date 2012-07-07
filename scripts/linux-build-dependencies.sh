@@ -19,7 +19,7 @@ BASEDIR=$HOME/openscad_deps
 OPENSCADDIR=$PWD
 SRCDIR=$BASEDIR/src
 DEPLOYDIR=$BASEDIR
-NUMCPU=1 # paralell builds for some libraries
+if [ ! $NUMCPU ]; then NUMCPU=1 ; fi # paralell builds for some libraries
 
 printUsage()
 {

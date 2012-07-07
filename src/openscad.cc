@@ -83,16 +83,25 @@ static void version()
 	exit(1);
 }
 
-std::string commandline_commands;
-std::string currentdir;
-std::string examplesdir;
-
 using std::string;
 using std::vector;
+using std::map;
 
-int start_qt_gui( const char * filename, int argc, char ** argv, bool useGUI )
+string commandline_commands;
+string currentdir;
+string examplesdir;
+class Options
 {
-	QApplication app(argc, argv, useGUI);
+public:
+	string input_file, output_file, deps_output_file;
+	bool useGUI, preview_mode;
+	po::variables_map vm;
+};
+
+
+int start_qt_gui( Options opts, int argc, char ** argv, fs::path original_path )
+{
+	QApplication app(argc, argv, opts.useGUI);
 #ifdef Q_WS_MAC
 	app.installEventFilter(new EventFilter(&app));
 #endif
@@ -107,7 +116,8 @@ int start_qt_gui( const char * filename, int argc, char ** argv, bool useGUI )
 #endif
 
 	QString qfilename;
-	if (filename) qfilename = QString::fromStdString(boosty::stringy(boosty::absolute(filename)));
+	fs::path abspath = boosty::absolute(opts.input_file.c_str());
+	qfilename = QString::fromStdString(boosty::stringy(abspath));
 
 #if 0 /*** disabled by clifford wolf: adds rendering artefacts with OpenCSG ***/
 	// turn on anti-aliasing
@@ -119,8 +129,8 @@ int start_qt_gui( const char * filename, int argc, char ** argv, bool useGUI )
 #ifdef ENABLE_MDI
 	new MainWindow(qfilename);
 	vector<string> inputFiles;
-	if (vm.count("input-file")) {
-		inputFiles = vm["input-file"].as<vector<string> >();
+	if (opts.vm.count("input-file")) {
+		inputFiles = opts.vm["input-file"].as<vector<string> >();
 		for (vector<string>::const_iterator infile = inputFiles.begin()+1; infile != inputFiles.end(); infile++) {
 			new MainWindow(QString::fromStdString(boosty::stringy((original_path / *infile))));
 		}
@@ -134,7 +144,7 @@ int start_qt_gui( const char * filename, int argc, char ** argv, bool useGUI )
 }
 
 
-void render_to_file( const char *filename, const char *output_file, fs::path original_path, const char * deps_output_file )
+void render_to_file( Options opts, fs::path original_path )
 {
 	// Initialize global visitors
 	NodeCache nodecache;
@@ -150,16 +160,16 @@ void render_to_file( const char *filename, const char *output_file, fs::path ori
 	const char *dxf_output_file = NULL;
 	const char *csg_output_file = NULL;
 	const char *png_output_file = NULL;
-	fs::path outpath(output_file);
-	std::string suffix = boosty::stringy( outpath.extension() );
+	fs::path outpath(opts.output_file);
+	string suffix = boosty::stringy( outpath.extension() );
 	std::transform(suffix.begin(),suffix.end(),suffix.begin(),::tolower);
-	if (suffix == ".stl") stl_output_file = output_file;
-	else if (suffix == ".off") off_output_file = output_file;
-	else if (suffix == ".dxf") dxf_output_file = output_file;
-	else if (suffix == ".csg") csg_output_file = output_file;
-	else if (suffix == ".png") png_output_file = output_file;
+	if (suffix == ".stl") stl_output_file = opts.output_file.c_str();
+	else if (suffix == ".off") off_output_file = opts.output_file.c_str();
+	else if (suffix == ".dxf") dxf_output_file = opts.output_file.c_str();
+	else if (suffix == ".csg") csg_output_file = opts.output_file.c_str();
+	else if (suffix == ".png") png_output_file = opts.output_file.c_str();
 	else {
-		fprintf(stderr, "Unknown suffix for output file %s\n", output_file);
+		fprintf(stderr, "Unknown suffix for output file %s\n", opts.output_file.c_str());
 		exit(1);
 	}
 
@@ -171,121 +181,121 @@ void render_to_file( const char *filename, const char *output_file, fs::path ori
 	ModuleInstantiation root_inst;
 	AbstractNode *root_node;
 
-		handle_dep(filename);
-		
-		std::ifstream ifs(filename);
-		if (!ifs.is_open()) {
-			fprintf(stderr, "Can't open input file '%s'!\n", filename);
-			exit(1);
+	handle_dep(opts.input_file);
+
+	std::ifstream ifs(opts.input_file.c_str());
+	if (!ifs.is_open()) {
+		fprintf(stderr, "Can't open input file '%s'!\n", opts.input_file.c_str());
+		exit(1);
+	}
+	string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+	text += "\n" + commandline_commands;
+	fs::path abspath = boosty::absolute(opts.input_file);
+	string parentpath = boosty::stringy(abspath.parent_path());
+	root_module = parse(text.c_str(), parentpath.c_str(), false);
+	if (!root_module) exit(1);
+	root_module->handleDependencies();
+
+	fs::path fpath = boosty::absolute(fs::path(opts.input_file));
+	fs::path fparent = fpath.parent_path();
+	fs::current_path(fparent);
+
+	AbstractNode::resetIndexCounter();
+	root_node = root_module->evaluate(&root_ctx, &root_inst);
+	tree.setRoot(root_node);
+
+	if (csg_output_file) {
+		fs::current_path(original_path);
+		std::ofstream fstream(csg_output_file);
+		if (!fstream.is_open()) {
+			PRINTB("Can't open file \"%s\" for export", csg_output_file);
 		}
-		std::string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		text += "\n" + commandline_commands;
-		fs::path abspath = boosty::absolute(filename);
-		std::string parentpath = boosty::stringy(abspath.parent_path());
-		root_module = parse(text.c_str(), parentpath.c_str(), false);
-		if (!root_module) exit(1);
-		root_module->handleDependencies();
-		
-		fs::path fpath = boosty::absolute(fs::path(filename));
-		fs::path fparent = fpath.parent_path();
-		fs::current_path(fparent);
+		else {
+			fs::current_path(fparent); // Force exported filenames to be relative to document path
+			fstream << tree.getString(*root_node) << "\n";
+			fstream.close();
+		}
+	}
+	else {
+		CGAL_Nef_polyhedron root_N = cgalevaluator.evaluateCGALMesh(*tree.root());
 
-		AbstractNode::resetIndexCounter();
-		root_node = root_module->evaluate(&root_ctx, &root_inst);
-		tree.setRoot(root_node);
+		fs::current_path(original_path);
 
-		if (csg_output_file) {
-			fs::current_path(original_path);
-			std::ofstream fstream(csg_output_file);
+		if (opts.deps_output_file!="") {
+			if (!write_deps(opts.deps_output_file,
+				stl_output_file ? stl_output_file : off_output_file)) {
+				exit(1);
+			}
+		}
+
+		if (stl_output_file) {
+			if (root_N.dim != 3) {
+				fprintf(stderr, "Current top level object is not a 3D object.\n");
+				exit(1);
+			}
+			if (!root_N.p3->is_simple()) {
+				fprintf(stderr, "Object isn't a valid 2-manifold! Modify your design.\n");
+				exit(1);
+			}
+			std::ofstream fstream(stl_output_file);
 			if (!fstream.is_open()) {
-				PRINTB("Can't open file \"%s\" for export", csg_output_file);
+				PRINTB("Can't open file \"%s\" for export", stl_output_file);
 			}
 			else {
-				fs::current_path(fparent); // Force exported filenames to be relative to document path
-				fstream << tree.getString(*root_node) << "\n";
+				export_stl(&root_N, fstream);
 				fstream.close();
 			}
 		}
-		else {
-			CGAL_Nef_polyhedron root_N = cgalevaluator.evaluateCGALMesh(*tree.root());
-			
-			fs::current_path(original_path);
-			
-			if (deps_output_file) {
-				if (!write_deps(deps_output_file, 
-												stl_output_file ? stl_output_file : off_output_file)) {
-					exit(1);
-				}
-			}
 
-			if (stl_output_file) {
-				if (root_N.dim != 3) {
-					fprintf(stderr, "Current top level object is not a 3D object.\n");
-					exit(1);
-				}
-				if (!root_N.p3->is_simple()) {
-					fprintf(stderr, "Object isn't a valid 2-manifold! Modify your design.\n");
-					exit(1);
-				}
-				std::ofstream fstream(stl_output_file);
-				if (!fstream.is_open()) {
-					PRINTB("Can't open file \"%s\" for export", stl_output_file);
-				}
-				else {
-					export_stl(&root_N, fstream);
-					fstream.close();
-				}
+		if (off_output_file) {
+			if (root_N.dim != 3) {
+				fprintf(stderr, "Current top level object is not a 3D object.\n");
+				exit(1);
 			}
-			
-			if (off_output_file) {
-				if (root_N.dim != 3) {
-					fprintf(stderr, "Current top level object is not a 3D object.\n");
-					exit(1);
-				}
-				if (!root_N.p3->is_simple()) {
-					fprintf(stderr, "Object isn't a valid 2-manifold! Modify your design.\n");
-					exit(1);
-				}
-				std::ofstream fstream(off_output_file);
-				if (!fstream.is_open()) {
-					PRINTB("Can't open file \"%s\" for export", off_output_file);
-				}
-				else {
-					export_off(&root_N, fstream);
-					fstream.close();
-				}
+			if (!root_N.p3->is_simple()) {
+				fprintf(stderr, "Object isn't a valid 2-manifold! Modify your design.\n");
+				exit(1);
 			}
-			
-			if (dxf_output_file) {
-				if (root_N.dim != 2) {
-					fprintf(stderr, "Current top level object is not a 2D object.\n");
-					exit(1);
-				}
-				std::ofstream fstream(dxf_output_file);
-				if (!fstream.is_open()) {
-					PRINTB("Can't open file \"%s\" for export", dxf_output_file);
-				}
-				else {
-					export_dxf(&root_N, fstream);
-					fstream.close();
-				}
+			std::ofstream fstream(off_output_file);
+			if (!fstream.is_open()) {
+				PRINTB("Can't open file \"%s\" for export", off_output_file);
 			}
-
-			if (png_output_file) {
-				// can't use fstream because of the way
-				// 'imageutils-macosx.cc' & etc works
-				export_png(&root_N, png_output_file, "CGAL");
+			else {
+				export_off(&root_N, fstream);
+				fstream.close();
 			}
 		}
-		delete root_node;
+
+		if (dxf_output_file) {
+			if (root_N.dim != 2) {
+				fprintf(stderr, "Current top level object is not a 2D object.\n");
+				exit(1);
+			}
+			std::ofstream fstream(dxf_output_file);
+			if (!fstream.is_open()) {
+				PRINTB("Can't open file \"%s\" for export", dxf_output_file);
+			}
+			else {
+				export_dxf(&root_N, fstream);
+				fstream.close();
+			}
+		}
+
+		if (png_output_file) {
+			// can't use fstream because of the way
+			// 'imageutils-macosx.cc' & etc works
+			export_png(&root_N, png_output_file, "CGAL");
+		}
+	}
+	delete root_node;
 #else
-		fprintf(stderr, "OpenSCAD has been compiled without CGAL support!\n");
-		exit(1);
+	fprintf(stderr, "OpenSCAD has been compiled without CGAL support!\n");
+	exit(1);
 #endif
 }
 
 
-std::string find_examples( fs::path exdir )
+string find_examples( fs::path exdir )
 {
 	fs::path examples_path( "" );
 	fs::path test0( exdir / fs::path("../Resources/examples") );
@@ -306,35 +316,10 @@ std::string find_examples( fs::path exdir )
 	return boosty::stringy( examples_path );
 }
 
-int main(int argc, char **argv)
+
+Options parse_options( int argc, char **argv )
 {
-	int rc = 0;
-
-#ifdef ENABLE_CGAL
-	// Causes CGAL errors to abort directly instead of throwing exceptions
-	// (which we don't catch). This gives us stack traces without rerunning in gdb.
-	CGAL::set_error_behaviour(CGAL::ABORT);
-#endif
-
-#ifdef Q_WS_X11
-	// see <http://qt.nokia.com/doc/4.5/qapplication.html#QApplication-2>:
-	// On X11, the window system is initialized if GUIenabled is true. If GUIenabled
-	// is false, the application does not connect to the X server. On Windows and
-	// Macintosh, currently the window system is always initialized, regardless of the
-	// value of GUIenabled. This may change in future versions of Qt.
-	bool useGUI = getenv("DISPLAY") != 0;
-#else
-	bool useGUI = true;
-#endif
-
-	Builtins::instance()->initialize();
-
-	fs::path original_path = fs::current_path();
-
-	const char *filename = NULL;
-	const char *output_file = NULL;
-	const char *deps_output_file = NULL;
-
+	Options opts;
 	po::options_description desc("Allowed options");
 	desc.add_options()
 		("help,h", "help message")
@@ -356,46 +341,50 @@ int main(int argc, char **argv)
 	po::options_description all_options;
 	all_options.add(desc).add(hidden);
 
-	po::variables_map vm;
 	try {
-		po::store(po::command_line_parser(argc, argv).options(all_options).positional(p).run(), vm);
+		po::store(po::command_line_parser(argc, argv).options(all_options).positional(p).run(), opts.vm);
 	}
 	catch(std::exception &e) { // Catches e.g. unknown options
 		fprintf(stderr, "%s\n", e.what());
 		help(argv[0]);
 	}
 
-	if (vm.count("help")) help(argv[0]);
-	if (vm.count("version")) version();
+	if (opts.vm.count("help")) help(argv[0]);
+	if (opts.vm.count("version")) version();
 
-	if (vm.count("o")) {
+	if (opts.vm.count("o")) {
 		// FIXME: Allow for multiple output files?
-		if (output_file) help(argv[0]);
-		output_file = vm["o"].as<string>().c_str();
+		if (opts.output_file!="") help(argv[0]);
+		opts.output_file = opts.vm["o"].as<string>();
 	}
-	if (vm.count("s")) {
+	if (opts.vm.count("s")) {
 		fprintf(stderr, "DEPRECATED: The -s option is deprecated. Use -o instead.\n");
-		if (output_file) help(argv[0]);
-		output_file = vm["s"].as<string>().c_str();
+		if (opts.output_file!="") help(argv[0]);
+		opts.output_file = opts.vm["s"].as<string>();
 	}
-	if (vm.count("x")) { 
+	if (opts.vm.count("x")) {
 		fprintf(stderr, "DEPRECATED: The -x option is deprecated. Use -o instead.\n");
-		if (output_file) help(argv[0]);
-		output_file = vm["x"].as<string>().c_str();
+		if (opts.output_file!="") help(argv[0]);
+		opts.output_file = opts.vm["x"].as<string>();
 	}
-	if (vm.count("d")) {
-		if (deps_output_file)
+	if (opts.vm.count("d")) {
+		if (opts.deps_output_file!="")
 			help(argv[0]);
-		deps_output_file = vm["d"].as<string>().c_str();
 	}
-	if (vm.count("m")) {
+	opts.deps_output_file = opts.vm.count("d") ? opts.vm["d"].as<string>() : "";
+
+	if (opts.vm.count("m")) {
 		if (make_command)
 			help(argv[0]);
-		make_command = vm["m"].as<string>().c_str();
+		make_command = opts.vm["m"].as<string>().c_str();
 	}
 
-	if (vm.count("D")) {
-		const vector<string> &commands = vm["D"].as<vector<string> >();
+	if (opts.vm.count("input-file")) {
+		opts.input_file = *opts.vm["input-file"].as< vector<string> >().begin();
+	}
+
+	if (opts.vm.count("D")) {
+		const vector<string> &commands = opts.vm["D"].as<vector<string> >();
 
 		for (vector<string>::const_iterator i = commands.begin(); i != commands.end(); i++) {
 			commandline_commands += *i;
@@ -403,32 +392,57 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (vm.count("input-file")) {
-		filename = vm["input-file"].as< vector<string> >().begin()->c_str();
-	}
+	return opts;
+}
 
+
+int main(int argc, char **argv)
+{
+	int rc = 0;
+	Options opts = parse_options( argc, argv );
+	if (opts.input_file=="") help(argv[0]);
 #ifndef ENABLE_MDI
-	if (vm.count("input-file") > 1) {
+	if (opts.vm.count("input-file") > 1) {
 		help(argv[0]);
 	}
 #endif
 
-	if (!filename) help(argv[0]);
+
+#ifdef ENABLE_CGAL
+	// Causes CGAL errors to abort directly instead of throwing exceptions
+	// (which we don't catch). This gives us stack traces without rerunning in gdb.
+	CGAL::set_error_behaviour(CGAL::ABORT);
+#endif
+
+#ifdef Q_WS_X11
+	// see <http://qt.nokia.com/doc/4.5/qapplication.html#QApplication-2>:
+	// On X11, the window system is initialized if GUIenabled is true. If GUIenabled
+	// is false, the application does not connect to the X server. On Windows and
+	// Macintosh, currently the window system is always initialized, regardless of the
+	// value of GUIenabled. This may change in future versions of Qt.
+	opts.useGUI = getenv("DISPLAY") != 0;
+#else
+	opts.useGUI = true;
+#endif
+
+	Builtins::instance()->initialize();
+
+	fs::path original_path = fs::current_path();
 
 	currentdir = boosty::stringy( fs::current_path() );
 
-	fs::path expath( argv[0] );
-	fs::path exdir( expath.parent_path() );
-	examplesdir = find_examples( exdir );
+	fs::path exec_path( argv[0] );
+	fs::path exec_dir( exec_path.parent_path() );
+	examplesdir = find_examples( exec_dir );
 
-	parser_init( boosty::stringy( exdir ) );
+	parser_init( boosty::stringy( exec_dir ) );
 
-	if (output_file) {
-		render_to_file( filename, output_file, original_path, deps_output_file );
+	if (opts.output_file!="") {
+		render_to_file( opts, original_path );
 	}
-	else if (useGUI)
+	else if (opts.useGUI)
 	{
-		rc = start_qt_gui( filename, argc, argv, useGUI );
+		rc = start_qt_gui( opts, argc, argv, original_path );
 	}
 	else
 	{
