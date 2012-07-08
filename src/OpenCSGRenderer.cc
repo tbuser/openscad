@@ -144,17 +144,15 @@ OpenCSGShaderInfo enable_opencsg_shaders()
 		glAttachShader(edgeshader_prog, fs);
 		glLinkProgram(edgeshader_prog);
 
-		GLint shaderinfo[11];
-
-		shaderinfo[0] = edgeshader_prog;
-		shaderinfo[1] = glGetUniformLocation(edgeshader_prog, "color1");
-		shaderinfo[2] = glGetUniformLocation(edgeshader_prog, "color2");
-		shaderinfo[3] = glGetAttribLocation(edgeshader_prog, "trig");
-		shaderinfo[4] = glGetAttribLocation(edgeshader_prog, "pos_b");
-		shaderinfo[5] = glGetAttribLocation(edgeshader_prog, "pos_c");
-		shaderinfo[6] = glGetAttribLocation(edgeshader_prog, "mask");
-		shaderinfo[7] = glGetUniformLocation(edgeshader_prog, "xscale");
-		shaderinfo[8] = glGetUniformLocation(edgeshader_prog, "yscale");
+		si.shaderinfo[0] = edgeshader_prog;
+		si.shaderinfo[1] = glGetUniformLocation(edgeshader_prog, "color1");
+		si.shaderinfo[2] = glGetUniformLocation(edgeshader_prog, "color2");
+		si.shaderinfo[3] = glGetAttribLocation(edgeshader_prog, "trig");
+		si.shaderinfo[4] = glGetAttribLocation(edgeshader_prog, "pos_b");
+		si.shaderinfo[5] = glGetAttribLocation(edgeshader_prog, "pos_c");
+		si.shaderinfo[6] = glGetAttribLocation(edgeshader_prog, "mask");
+		si.shaderinfo[7] = glGetUniformLocation(edgeshader_prog, "xscale");
+		si.shaderinfo[8] = glGetUniformLocation(edgeshader_prog, "yscale");
 
 		GLenum err = glGetError();
 		if (err != GL_NO_ERROR) {
@@ -203,6 +201,7 @@ OpenCSGShaderInfo enable_opencsg_shaders()
 	  << "\ndepth(" << dbits << "), stencil(" << sbits << ")"
 	  << "\nExtensions:\n" << glGetString(GL_EXTENSIONS);
 
+	si.glinfo = info.str();
 	return si;
 }
 #endif // ENABLE_OPENCSG
