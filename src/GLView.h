@@ -23,8 +23,7 @@ public:
 	GLView(const QGLFormat & format, QWidget *parent = NULL);
 #ifdef ENABLE_OPENCSG
 	bool hasOpenCSGSupport() { return this->opencsg_glinfo.opencsg_support; }
-        int getOpenCSGContext() { return this->opencsg_glinfo.opencsg_id; }
-        GLint *getShaderinfo() { return this->opencsg_glinfo.shaderinfo; }
+	OpenCSG_GLInfo opencsg_glinfo;
 #endif
 	void setRenderer(class Renderer* r);
 	// Properties
@@ -54,10 +53,6 @@ private:
 	Renderer *renderer;
 
 	QString rendererInfo;
-#ifdef ENABLE_OPENCSG
-	OpenCSG_GLInfo opencsg_glinfo;
-#endif
-
 
 	bool showfaces;
 	bool showedges;

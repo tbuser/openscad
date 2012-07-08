@@ -113,6 +113,7 @@ Options parse_options( int argc, char **argv )
 		("help,h", "help message")
 		("version,v", "print the version")
 		("preview", "use preview renderer when creating images")
+		("offsinfo", "print information about offscreen rendering")
 		("o,o", po::value<string>(), "out-file")
 		("s,s", po::value<string>(), "stl-file")
 		("x,x", po::value<string>(), "dxf-file")
@@ -307,7 +308,6 @@ void render_to_file( Options opts, fs::path original_path )
 		}
 	}
 	else if ( png_output_file && opts.preview_mode ) {
-		std::cout << "opts\n";
 		export_png_opencsg( absolute_root_node, png_output_file );
 	}
 	else {
@@ -386,7 +386,8 @@ void render_to_file( Options opts, fs::path original_path )
 #endif
 }
 
-
+#include <iostream>
+using std::cout;
 string find_examples( fs::path exdir )
 {
 	fs::path examples_path( "" );
@@ -395,7 +396,6 @@ string find_examples( fs::path exdir )
 	fs::path test2( exdir / fs::path("../../share/openscad/examples") );
 	fs::path test3( exdir / fs::path("../../examples") );
 	fs::path test4( exdir / fs::path("./examples") );
-
 #ifdef Q_WS_MAC
 	if ( fs::is_directory( test0 ) ) exdir /= fs::path("../..");
 #elif defined(Q_OS_UNIX)
@@ -405,6 +405,7 @@ string find_examples( fs::path exdir )
 	else
 #endif
 	if ( fs::is_directory( test4 ) ) examples_path = test4;
+	examples_path = boosty::absolute( examples_path );
 	return boosty::stringy( examples_path );
 }
 
@@ -414,7 +415,6 @@ int main(int argc, char **argv)
 	fs::path original_path = fs::current_path();
 	int rc = 0;
 	Options opts = parse_options( argc, argv );
-	if (opts.input_file=="") help(argv[0]);
 #ifndef ENABLE_MDI
 	if (opts.vm.count("input-file") > 1) {
 		help(argv[0]);
@@ -451,6 +451,7 @@ int main(int argc, char **argv)
 	parser_init( boosty::stringy( exec_dir ) );
 
 	if (opts.output_file!="") {
+		if (opts.input_file=="") help(argv[0]);
 		render_to_file( opts, original_path );
 	}
 	else if (opts.useGUI)

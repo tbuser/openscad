@@ -35,8 +35,7 @@ public:
 
 #ifdef ENABLE_OPENCSG
         bool hasOpenCSGSupport() { return this->opencsg_glinfo.opencsg_support; }
-	int getOpenCSGContext() { return this->opencsg_glinfo.opencsg_id; }
-        GLint *getShaderinfo() { return this->opencsg_glinfo.shaderinfo; }
+	OpenCSG_GLInfo opencsg_glinfo;
 #endif
 private:
 	Renderer *renderer;
@@ -49,9 +48,6 @@ private:
 	bool showaxes;
 	bool showfaces;
 	bool showedges;
-#ifdef ENABLE_OPENCSG
-	OpenCSG_GLInfo opencsg_glinfo;
-#endif
 };
 
 #endif

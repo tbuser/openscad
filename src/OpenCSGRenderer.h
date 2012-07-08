@@ -24,7 +24,7 @@ class OpenCSGRenderer : public Renderer
 {
 public:
 	OpenCSGRenderer(class CSGChain *root_chain, CSGChain *highlights_chain, 
-									CSGChain *background_chain, GLint *shaderinfo);
+									CSGChain *background_chain, OpenCSG_GLInfo *opencsg_glinfo);
 	void draw(bool showfaces, bool showedges) const;
 private:
 	void renderCSGChain(class CSGChain *chain, GLint *shaderinfo, 
@@ -33,7 +33,7 @@ private:
 	CSGChain *root_chain;
 	CSGChain *highlights_chain;
 	CSGChain *background_chain;
-	GLint *shaderinfo;
+	OpenCSG_GLInfo *opencsg_glinfo;
 };
 
 #endif

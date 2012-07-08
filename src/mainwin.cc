@@ -578,10 +578,11 @@ void MainWindow::updateTVal()
 void MainWindow::refreshDocument()
 {
 	setCurrentOutput();
-	if (!this->fileName.isEmpty()) {
+	QFileInfo info(this->fileName);
+	if (!this->fileName.isEmpty() && !info.isDir()) {
 		QFile file(this->fileName);
 		if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-			PRINTB("Failed to open file %s: %s", 
+			PRINTB("Failed to open file %s: %s",
 						 this->fileName.toStdString() % file.errorString().toStdString());
 		}
 		else {
@@ -771,7 +772,7 @@ void MainWindow::compileCSG(bool procevents)
 			this->opencsgRenderer = new OpenCSGRenderer(this->root_chain, 
 																									this->highlights_chain, 
 																									this->background_chain, 
-																									this->glview->getShaderinfo());
+																									&this->glview->opencsg_glinfo);
 		}
 		this->thrownTogetherRenderer = new ThrownTogetherRenderer(this->root_chain, 
 																															this->highlights_chain, 

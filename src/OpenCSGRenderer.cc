@@ -47,7 +47,7 @@ OpenCSG_GLInfo::OpenCSG_GLInfo()
 /* Set up the current OpenGL context for OpenCSG. */
 OpenCSG_GLInfo enable_opencsg_shaders()
 {
-	static int opencsg_context = 0;
+	static int opencsg_context_id = 0;
 
 	OpenCSG_GLInfo si = OpenCSG_GLInfo();
 	// FIXME: glGetString(GL_EXTENSIONS) is deprecated in OpenGL 3.0.
@@ -61,6 +61,7 @@ OpenCSG_GLInfo enable_opencsg_shaders()
 
 	// All OpenGL 2 contexts are OpenCSG capable
 	if (GLEW_VERSION_2_0) {
+		PRINT("GL 2.0");
 		if (!openscad_disable_gl20_env) {
 			si.is_opencsg_capable = true;
 			si.has_shaders = true;
@@ -68,6 +69,7 @@ OpenCSG_GLInfo enable_opencsg_shaders()
 	}
 	// If OpenGL < 2, check for extensions
 	else {
+		PRINT("GL <2.0");
 		if (GLEW_ARB_framebuffer_object) si.is_opencsg_capable = true;
 		else if (GLEW_EXT_framebuffer_object && GLEW_EXT_packed_depth_stencil) {
 			si.is_opencsg_capable = true;
@@ -79,7 +81,7 @@ OpenCSG_GLInfo enable_opencsg_shaders()
 #endif
 	}
 
-	if ( si.is_opencsg_capable ) si.opencsg_id = opencsg_context++;
+	if ( si.is_opencsg_capable ) si.opencsg_id = opencsg_context_id++;
 
 	if ( si.has_shaders ) {
   /*
@@ -232,16 +234,18 @@ public:
 };
 
 OpenCSGRenderer::OpenCSGRenderer(CSGChain *root_chain, CSGChain *highlights_chain,
-																 CSGChain *background_chain, GLint *shaderinfo)
+																 CSGChain *background_chain, OpenCSG_GLInfo *opencsg_glinfo)
 	: root_chain(root_chain), highlights_chain(highlights_chain), 
-		background_chain(background_chain), shaderinfo(shaderinfo)
+		background_chain(background_chain), opencsg_glinfo(opencsg_glinfo)
 {
 }
 
 void OpenCSGRenderer::draw(bool /*showfaces*/, bool showedges) const
 {
+	assert(this->opencsg_glinfo);
+	//OpenCSG::setContext(this->opencsg_glinfo->opencsg_id);
 	if (this->root_chain) {
-		GLint *shaderinfo = this->shaderinfo;
+		GLint *shaderinfo = this->opencsg_glinfo->shaderinfo;
 		if (!shaderinfo[0]) shaderinfo = NULL;
 		renderCSGChain(this->root_chain, showedges ? shaderinfo : NULL, false, false);
 		if (this->background_chain) {
