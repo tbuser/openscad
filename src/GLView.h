@@ -5,6 +5,10 @@
 #include <QGLWidget>
 #include <QLabel>
 
+#ifdef ENABLE_OPENCSG
+#include "OpenCSGRenderer.h"
+#endif
+
 class GLView : public QGLWidget
 {
 	Q_OBJECT
@@ -17,10 +21,12 @@ class GLView : public QGLWidget
 public:
 	GLView(QWidget *parent = NULL);
 	GLView(const QGLFormat & format, QWidget *parent = NULL);
-	void setRenderer(class Renderer* r);
 #ifdef ENABLE_OPENCSG
-	bool hasOpenCSGSupport() { return this->opencsg_support; }
+	bool hasOpenCSGSupport() { return this->opencsg_glinfo.opencsg_support; }
+        int getOpenCSGContext() { return this->opencsg_glinfo.opencsg_id; }
+        GLint *getShaderinfo() { return this->opencsg_glinfo.shaderinfo; }
 #endif
+	void setRenderer(class Renderer* r);
 	// Properties
 	bool showFaces() const { return this->showfaces; }
 	void setShowFaces(bool enabled) { this->showfaces = enabled; }
@@ -42,18 +48,16 @@ public:
 	double object_trans_x;
 	double object_trans_y;
 	double object_trans_z;
-	GLint shaderinfo[SHADERINFO_COUNT];
-
-#ifdef ENABLE_OPENCSG
-	bool opencsg_support;
-	int opencsg_id;
-#endif
 
 private:
 	void init();
 	Renderer *renderer;
 
 	QString rendererInfo;
+#ifdef ENABLE_OPENCSG
+	OpenCSG_GLInfo opencsg_glinfo;
+#endif
+
 
 	bool showfaces;
 	bool showedges;
@@ -82,8 +86,6 @@ private:
 	void normalizeAngle(GLdouble& angle);
 
 #ifdef ENABLE_OPENCSG
-  bool is_opencsg_capable;
-  bool has_shaders;
 private slots:
 	void display_opencsg_warning();
 #endif

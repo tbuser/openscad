@@ -9,7 +9,9 @@
 #ifndef _MSC_VER
 #include <stdint.h>
 #endif
-
+#ifdef ENABLE_OPENCSG
+#include "OpenCSGRenderer.h"
+#endif
 
 class OffscreenView
 {
@@ -27,16 +29,14 @@ public:
 	bool save(const char *filename);
 	std::string getInfo();
 
-	GLint shaderinfo[SHADERINFO_COUNT];
 	OffscreenContext *ctx;
 	size_t width;
 	size_t height;
 
 #ifdef ENABLE_OPENCSG
-        bool hasOpenCSGSupport() { return this->opencsg_support; }
-        int opencsg_id;
-	bool is_opencsg_capable;
-	bool has_shaders;
+        bool hasOpenCSGSupport() { return this->opencsg_glinfo.opencsg_support; }
+	int getOpenCSGContext() { return this->opencsg_glinfo.opencsg_id; }
+        GLint *getShaderinfo() { return this->opencsg_glinfo.shaderinfo; }
 #endif
 private:
 	Renderer *renderer;
@@ -49,7 +49,9 @@ private:
 	bool showaxes;
 	bool showfaces;
 	bool showedges;
-        bool opencsg_support;
+#ifdef ENABLE_OPENCSG
+	OpenCSG_GLInfo opencsg_glinfo;
+#endif
 };
 
 #endif

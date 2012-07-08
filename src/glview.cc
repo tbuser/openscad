@@ -88,18 +88,11 @@ void GLView::init()
 	this->showaxes = false;
 	this->showcrosshairs = false;
 
-	for (int i = 0; i < SHADERINFO_COUNT; i++)
-		this->shaderinfo[i] = 0;
-
 	this->statusLabel = NULL;
 
 	setMouseTracking(true);
 #ifdef ENABLE_OPENCSG
-	this->is_opencsg_capable = false;
-	this->has_shaders = false;
-	this->opencsg_support = true;
-	static int sId = 0;
-	this->opencsg_id = sId++;
+	this->opencsg_glinfo = OpenCSG_GLInfo();
 #endif
 }
 
@@ -134,12 +127,9 @@ void GLView::initializeGL()
 	glEnable(GL_COLOR_MATERIAL);
 
 #ifdef ENABLE_OPENCSG
-	OpenCSGShaderInfo si = enable_opencsg_shaders();
-	this->is_opencsg_capable = si.is_opencsg_capable;
-	this->has_shaders = si.has_shaders;
-	for (int i=0;i<SHADERINFO_COUNT;i++) this->shaderinfo[i] = si.shaderinfo[i];
+	this->opencsg_glinfo = enable_opencsg_shaders();
 
-	if (!GLEW_VERSION_2_0 || !this->is_opencsg_capable) {
+	if (!GLEW_VERSION_2_0 || !this->opencsg_glinfo.is_opencsg_capable) {
 		if (Preferences::inst()->getValue("advanced/opencsg_show_warning").toBool()) {
 			QTimer::singleShot(0, this, SLOT(display_opencsg_warning()));
 		}
@@ -153,7 +143,7 @@ void GLView::display_opencsg_warning()
 	OpenCSGWarningDialog *dialog = new OpenCSGWarningDialog(this);
 
 	QString message;
-	if (this->is_opencsg_capable) {
+	if (this->opencsg_glinfo.is_opencsg_capable) {
 		message += "Warning: You may experience OpenCSG rendering errors.\n\n";
 	}
 	else {
@@ -176,15 +166,16 @@ void GLView::display_opencsg_warning()
 	dialog->enableOpenCSGBox->setChecked(Preferences::inst()->getValue("advanced/enable_opencsg_opengl1x").toBool());
 	dialog->exec();
 
-	opencsg_support = this->is_opencsg_capable && Preferences::inst()->getValue("advanced/enable_opencsg_opengl1x").toBool();
+	bool prefcsg = Preferences::inst()->getValue("advanced/enable_opencsg_opengl1x").toBool();
+	this->opencsg_glinfo.opencsg_support = this->opencsg_glinfo.is_opencsg_capable && prefcsg;
 }
 #endif
 
 void GLView::resizeGL(int w, int h)
 {
 #ifdef ENABLE_OPENCSG
-	shaderinfo[9] = w;
-	shaderinfo[10] = h;
+	this->opencsg_glinfo.shaderinfo[9] = w;
+	this->opencsg_glinfo.shaderinfo[10] = h;
 #endif
 	glViewport(0, 0, w, h);
 	w_h_ratio = sqrt((double)w / (double)h);

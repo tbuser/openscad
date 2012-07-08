@@ -3,8 +3,6 @@
 
 #include <GL/glew.h>
 
-#define SHADERINFO_COUNT 11
-
 #ifdef __APPLE__
  #include <OpenGL/OpenGL.h>
 #else

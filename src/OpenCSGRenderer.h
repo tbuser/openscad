@@ -6,15 +6,19 @@
 
 #include <string>
 
-class OpenCSGShaderInfo
+#define SHADERINFO_COUNT 11
+
+class OpenCSG_GLInfo
 {
 public:
-  bool is_opencsg_capable, has_shaders;
-  std::string glinfo;
-  GLint shaderinfo[SHADERINFO_COUNT];
+	OpenCSG_GLInfo();
+	bool is_opencsg_capable, has_shaders, opencsg_support;
+	int opencsg_id;
+	std::string glinfo;
+	GLint shaderinfo[SHADERINFO_COUNT];
 };
 
-OpenCSGShaderInfo enable_opencsg_shaders();
+OpenCSG_GLInfo enable_opencsg_shaders();
 
 class OpenCSGRenderer : public Renderer
 {

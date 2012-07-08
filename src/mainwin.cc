@@ -771,7 +771,7 @@ void MainWindow::compileCSG(bool procevents)
 			this->opencsgRenderer = new OpenCSGRenderer(this->root_chain, 
 																									this->highlights_chain, 
 																									this->background_chain, 
-																									this->glview->shaderinfo);
+																									this->glview->getShaderinfo());
 		}
 		this->thrownTogetherRenderer = new ThrownTogetherRenderer(this->root_chain, 
 																															this->highlights_chain, 

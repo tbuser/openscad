@@ -18,17 +18,10 @@ OffscreenView::OffscreenView(size_t width, size_t height)
 	: object_rot(35, 0, 25), camera_eye(0, 0, 0), camera_center(0, 0, 0),
 		orthomode(false), showaxes(false), showfaces(true), showedges(false)
 {
-	for (int i = 0; i < 10; i++) this->shaderinfo[i] = 0;
+	this->opencsg_glinfo = OpenCSG_GLInfo();
 	this->ctx = create_offscreen_context(width, height);
 	if ( this->ctx == NULL ) throw -1;
 
-#ifdef ENABLE_OPENCSG
-        this->is_opencsg_capable = false;
-        this->has_shaders = false;
-        this->opencsg_support = true;
-        static int sId = 0;
-        this->opencsg_id = sId;
-#endif
 	initializeGL();
 	resizeGL(width, height);
 }
@@ -68,10 +61,7 @@ void OffscreenView::initializeGL()
 	glEnable(GL_COLOR_MATERIAL);
 
 #ifdef ENABLE_OPENCSG
-        OpenCSGShaderInfo si = enable_opencsg_shaders();
-        this->is_opencsg_capable = si.is_opencsg_capable;
-        this->has_shaders = si.has_shaders;
-        for(int i=0;i<SHADERINFO_COUNT;i++) this->shaderinfo[i] = si.shaderinfo[i];
+        this->opencsg_glinfo = enable_opencsg_shaders();
 #endif
 }
 

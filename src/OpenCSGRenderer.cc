@@ -35,13 +35,24 @@
 #include "printutils.h"
 #include <opencsg.h>
 
-/* Set up the current OpenGL context for OpenCSG. */
-OpenCSGShaderInfo enable_opencsg_shaders()
+/* create the Info object. */
+OpenCSG_GLInfo::OpenCSG_GLInfo()
 {
-	OpenCSGShaderInfo si = OpenCSGShaderInfo();
-// FIXME: glGetString(GL_EXTENSIONS) is deprecated in OpenGL 3.0.
-// Use: glGetIntegerv(GL_NUM_EXTENSIONS, &NumberOfExtensions) and 
-// glGetStringi(GL_EXTENSIONS, i)
+        is_opencsg_capable = has_shaders = opencsg_support = false;
+	this->opencsg_id = 0;
+        glinfo = "";
+	for (int i=0;i<SHADERINFO_COUNT;i++) shaderinfo[i]=0;
+};
+
+/* Set up the current OpenGL context for OpenCSG. */
+OpenCSG_GLInfo enable_opencsg_shaders()
+{
+	static int opencsg_context = 0;
+
+	OpenCSG_GLInfo si = OpenCSG_GLInfo();
+	// FIXME: glGetString(GL_EXTENSIONS) is deprecated in OpenGL 3.0.
+	// Use: glGetIntegerv(GL_NUM_EXTENSIONS, &NumberOfExtensions) and
+	// glGetStringi(GL_EXTENSIONS, i)
 
 	const char *openscad_disable_gl20_env = getenv("OPENSCAD_DISABLE_GL20");
 	if (openscad_disable_gl20_env && !strcmp(openscad_disable_gl20_env, "0")) {
@@ -67,6 +78,8 @@ OpenCSGShaderInfo enable_opencsg_shaders()
 		else if (GLXEW_SGIX_pbuffer && GLXEW_SGIX_fbconfig) si.is_opencsg_capable = true;
 #endif
 	}
+
+	if ( si.is_opencsg_capable ) si.opencsg_id = opencsg_context++;
 
 	if ( si.has_shaders ) {
   /*

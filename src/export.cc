@@ -133,10 +133,10 @@ void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )
         Vector3d camerapos = center - radius*1.8*cameradir;
         csgInfo.glview->setCamera(camerapos, center);
 
-        OpenCSGRenderer opencsgRenderer(csgInfo.root_chain, csgInfo.highlights_chain, csgInfo.background_chain, csgInfo.glview->shaderinfo);
+        OpenCSGRenderer opencsgRenderer(csgInfo.root_chain, csgInfo.highlights_chain, csgInfo.background_chain, csgInfo.glview->getShaderinfo());
 	csgInfo.glview->setRenderer(&opencsgRenderer);
 
-        OpenCSG::setContext(csgInfo.glview->opencsg_id);
+        OpenCSG::setContext(csgInfo.glview->getOpenCSGContext());
         OpenCSG::setOption(OpenCSG::OffscreenSetting, OpenCSG::FrameBufferObject);
 
         csgInfo.glview->paintGL();
