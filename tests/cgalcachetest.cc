@@ -57,7 +57,6 @@ namespace po = boost::program_options;
 
 std::string commandline_commands;
 std::string currentdir;
-QString examplesdir;
 
 using std::string;
 

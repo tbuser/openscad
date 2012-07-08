@@ -32,6 +32,8 @@
 #include "OffscreenView.h"
 #include "bboxhelp.h"
 
+#ifdef ENABLE_EXPORT_PNG
+
 #ifdef ENABLE_OPENCSG
 #include <boost/foreach.hpp>
 #include <opencsg.h>
@@ -157,15 +159,10 @@ void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )
 #endif //ENABLE_OPENCSG
 
 
-
 #ifdef ENABLE_CGAL
 
 #include "CGAL_renderer.h"
 #include "CGALRenderer.h"
-
-#include "CGAL_Nef_polyhedron.h"
-#include "cgal.h"
-
 
 void export_png_cgal( CGAL_Nef_polyhedron *root_N, std::string outfile )
 {
@@ -204,7 +201,15 @@ void export_png_cgal( CGAL_Nef_polyhedron *root_N, std::string outfile )
         glview->save(outfile.c_str());
 
 }
+#endif //ENABLE_CGAL
 
+#endif //ENABLE_EXPORT_PNG
+
+
+#ifdef ENABLE_CGAL
+
+#include "CGAL_Nef_polyhedron.h"
+#include "cgal.h"
 
 /*!
 	Saves the current 3D CGAL Nef polyhedron as STL to the given file.

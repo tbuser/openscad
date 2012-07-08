@@ -311,7 +311,7 @@ if (NOT SKIP_IMAGEMAGICK)
 endif()
 
 # Internal includes
-include_directories(../src)
+include_directories(../src ../tests)
 
 add_definitions(-DOPENSCAD_VERSION=test -DOPENSCAD_YEAR=2011 -DOPENSCAD_MONTH=10)
 add_definitions(-DOPENSCAD_TESTING)

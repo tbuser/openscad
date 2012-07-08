@@ -36,6 +36,8 @@ win32 {
 }
 debug: DEFINES += DEBUG
 
+DEFINES += ENABLE_EXPORT_PNG
+
 TEMPLATE = app
 
 INCLUDEPATH += src

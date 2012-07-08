@@ -57,7 +57,6 @@ namespace fs = boost::filesystem;
 
 std::string commandline_commands;
 std::string currentdir;
-QString examplesdir;
 
 using std::string;
 
