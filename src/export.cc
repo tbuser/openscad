@@ -62,19 +62,8 @@ public:
 };
 
 CsgInfo::CsgInfo() {
-        root_chain = NULL;
-        highlights_chain = NULL;
-        background_chain = NULL;
-        glview = NULL;
-}
-
-AbstractNode *find_root_tag(AbstractNode *n)
-{
-        BOOST_FOREACH(AbstractNode *v, n->children) {
-                if (v->modinst->tag_root) return v;
-                if (AbstractNode *vroot = find_root_tag(v)) return vroot;
-        }
-        return NULL;
+        root_chain = highlights_chain = background_chain = NULL;
+	glview = NULL;
 }
 
 void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )

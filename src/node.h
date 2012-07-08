@@ -12,6 +12,8 @@ extern void *progress_report_vp;
 void progress_report_prep(AbstractNode *root, void (*f)(const class AbstractNode *node, void *vp, int mark), void *vp);
 void progress_report_fin();
 
+AbstractNode *find_root_tag(AbstractNode *n);
+
 /*!  
 
 	The node tree is the result of evaluation of a module instantiation

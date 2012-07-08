@@ -30,10 +30,20 @@
 #include "visitor.h"
 #include "stl-utils.h"
 
+#include <boost/foreach.hpp>
 #include <iostream>
 #include <algorithm>
 
 size_t AbstractNode::idx_counter;
+
+AbstractNode *find_root_tag(AbstractNode *n)
+{
+        BOOST_FOREACH(AbstractNode *v, n->children) {
+                if (v->modinst->tag_root) return v;
+                if (AbstractNode *vroot = find_root_tag(v)) return vroot;
+        }
+        return NULL;
+}
 
 AbstractNode::AbstractNode(const ModuleInstantiation *mi)
 {

@@ -19,5 +19,5 @@ module example002()
 	}
 }
 
-example002();
+color("red") example002();
 

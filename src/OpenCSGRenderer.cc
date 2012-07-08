@@ -38,7 +38,7 @@
 /* Set up the current OpenGL context for OpenCSG. */
 OpenCSGShaderInfo enable_opencsg_shaders()
 {
-	OpenCSGShaderInfo si;
+	OpenCSGShaderInfo si = OpenCSGShaderInfo();
 // FIXME: glGetString(GL_EXTENSIONS) is deprecated in OpenGL 3.0.
 // Use: glGetIntegerv(GL_NUM_EXTENSIONS, &NumberOfExtensions) and 
 // glGetStringi(GL_EXTENSIONS, i)
@@ -68,7 +68,7 @@ OpenCSGShaderInfo enable_opencsg_shaders()
 #endif
 	}
 
-	if ( si.has_shaders) {
+	if ( si.has_shaders ) {
   /*
 		Uniforms:
 		  1 color1 - face color
@@ -179,10 +179,6 @@ OpenCSGShaderInfo enable_opencsg_shaders()
 				PRINTB( "OpenGL Program Validation results:\n%.*s",  std::string(logbuffer).c_str());
 			}
 		}
-	}
-	GLenum err = glewInit();
-	if (GLEW_OK != err) {
-		PRINTB( "GLEW Error: %s\n", glewGetErrorString(err));
 	}
 
 	GLint rbits, gbits, bbits, abits, dbits, sbits;

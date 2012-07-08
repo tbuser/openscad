@@ -307,6 +307,7 @@ void render_to_file( Options opts, fs::path original_path )
 		}
 	}
 	else if ( png_output_file && opts.preview_mode ) {
+		std::cout << "opts\n";
 		export_png_opencsg( absolute_root_node, png_output_file );
 	}
 	else {
