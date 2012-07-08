@@ -306,6 +306,9 @@ void render_to_file( Options opts, fs::path original_path )
 			fstream.close();
 		}
 	}
+	else if ( png_output_file && opts.preview_mode ) {
+		export_png_opencsg( absolute_root_node, png_output_file );
+	}
 	else {
 		CGAL_Nef_polyhedron root_N = cgalevaluator.evaluateCGALMesh(*tree.root());
 
@@ -371,11 +374,8 @@ void render_to_file( Options opts, fs::path original_path )
 			}
 		}
 
-		if (png_output_file) {
-			if (opts.preview_mode)
-				export_png_opencsg( absolute_root_node, png_output_file );
-			else
-				export_png_cgal(&root_N, png_output_file);
+		if ( png_output_file && !opts.preview_mode ) {
+			export_png_cgal(&root_N, png_output_file);
 		}
 	}
 	delete absolute_root_node;

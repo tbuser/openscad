@@ -113,7 +113,7 @@ void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )
                 PRINT( "WARNING: CSG normalization resulted in an empty tree\n");
         }
         if (csgInfo.highlight_terms.size() > 0) {
-                PRINTB("Compiling highlights (%i CSG Trees)...\n",csgInfo.highlight_terms.size() );
+                PRINTB("Compiling highlights (%i CSG Trees)...",csgInfo.highlight_terms.size() );
                 csgInfo.highlights_chain = new CSGChain();
                 for (unsigned int i = 0; i < csgInfo.highlight_terms.size(); i++) {
                         csgInfo.highlight_terms[i] = normalizer.normalize(csgInfo.highlight_terms[i]);
@@ -121,7 +121,7 @@ void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )
                 }
         }
         if (csgInfo.background_terms.size() > 0) {
-                PRINTB("Compiling backgrounds (%i CSG Trees)...\n",csgInfo.background_terms.size() );
+                PRINTB("Compiling backgrounds (%i CSG Trees)...",csgInfo.background_terms.size() );
                 csgInfo.background_chain = new CSGChain();
                 for (unsigned int i = 0; i < csgInfo.background_terms.size(); i++) {
                         csgInfo.background_terms[i] = normalizer.normalize(csgInfo.background_terms[i]);
