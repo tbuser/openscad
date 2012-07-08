@@ -2,12 +2,14 @@
 #define OFFSCREENVIEW_H_
 
 #include "OffscreenContext.h"
+#include "system-gl.h"
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <string>
 #ifndef _MSC_VER
 #include <stdint.h>
 #endif
+
 
 class OffscreenView
 {
@@ -25,10 +27,17 @@ public:
 	bool save(const char *filename);
 	std::string getInfo();
 
-	GLint shaderinfo[11];
+	GLint shaderinfo[SHADERINFO_COUNT];
 	OffscreenContext *ctx;
 	size_t width;
 	size_t height;
+
+#ifdef ENABLE_OPENCSG
+        bool hasOpenCSGSupport() { return this->opencsg_support; }
+        int opencsg_id;
+	bool is_opencsg_capable;
+	bool has_shaders;
+#endif
 private:
 	Renderer *renderer;
 	double w_h_ratio;
@@ -40,6 +49,7 @@ private:
 	bool showaxes;
 	bool showfaces;
 	bool showedges;
+        bool opencsg_support;
 };
 
 #endif

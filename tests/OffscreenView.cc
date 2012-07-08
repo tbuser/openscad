@@ -8,6 +8,10 @@
 #include <cstdlib>
 #include <sstream>
 
+#ifdef ENABLE_OPENCSG
+#include "OpenCSGRenderer.h"
+#endif
+
 #define FAR_FAR_AWAY 100000.0
 
 OffscreenView::OffscreenView(size_t width, size_t height)
@@ -18,6 +22,13 @@ OffscreenView::OffscreenView(size_t width, size_t height)
 	this->ctx = create_offscreen_context(width, height);
 	if ( this->ctx == NULL ) throw -1;
 
+#ifdef ENABLE_OPENCSG
+        this->is_opencsg_capable = false;
+        this->has_shaders = false;
+        this->opencsg_support = true;
+        static int sId = 0;
+        this->opencsg_id = sId;
+#endif
 	initializeGL();
 	resizeGL(width, height);
 }
@@ -56,7 +67,12 @@ void OffscreenView::initializeGL()
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
 
-
+#ifdef ENABLE_OPENCSG
+        OpenCSGShaderInfo si = enable_opencsg_shaders();
+        this->is_opencsg_capable = si.is_opencsg_capable;
+        this->has_shaders = si.has_shaders;
+        for(int i=0;i<SHADERINFO_COUNT;i++) this->shaderinfo[i] = si.shaderinfo[i];
+#endif
 }
 
 void OffscreenView::resizeGL(int w, int h)

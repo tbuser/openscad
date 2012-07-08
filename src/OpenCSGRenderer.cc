@@ -29,9 +29,183 @@
 #include "polyset.h"
 #include "csgterm.h"
 #include "stl-utils.h"
+
 #ifdef ENABLE_OPENCSG
-#  include <opencsg.h>
+#include <sstream>
+#include "printutils.h"
+#include <opencsg.h>
+
+/* Set up the current OpenGL context for OpenCSG. */
+OpenCSGShaderInfo enable_opencsg_shaders()
+{
+	OpenCSGShaderInfo si;
+// FIXME: glGetString(GL_EXTENSIONS) is deprecated in OpenGL 3.0.
+// Use: glGetIntegerv(GL_NUM_EXTENSIONS, &NumberOfExtensions) and 
+// glGetStringi(GL_EXTENSIONS, i)
+
+	const char *openscad_disable_gl20_env = getenv("OPENSCAD_DISABLE_GL20");
+	if (openscad_disable_gl20_env && !strcmp(openscad_disable_gl20_env, "0")) {
+		openscad_disable_gl20_env = NULL;
+	}
+
+	// All OpenGL 2 contexts are OpenCSG capable
+	if (GLEW_VERSION_2_0) {
+		if (!openscad_disable_gl20_env) {
+			si.is_opencsg_capable = true;
+			si.has_shaders = true;
+		}
+	}
+	// If OpenGL < 2, check for extensions
+	else {
+		if (GLEW_ARB_framebuffer_object) si.is_opencsg_capable = true;
+		else if (GLEW_EXT_framebuffer_object && GLEW_EXT_packed_depth_stencil) {
+			si.is_opencsg_capable = true;
+		}
+#ifdef WIN32
+		else if (WGLEW_ARB_pbuffer && WGLEW_ARB_pixel_format) si.is_opencsg_capable = true;
+#elif !defined(__APPLE__) && defined(GLXEW_SGIX_pbuffer) && defined(GLXEW_SGIX_fbconfig)
+		else if (GLXEW_SGIX_pbuffer && GLXEW_SGIX_fbconfig) si.is_opencsg_capable = true;
 #endif
+	}
+
+	if ( si.has_shaders) {
+  /*
+		Uniforms:
+		  1 color1 - face color
+			2 color2 - edge color
+			7 xscale
+			8 yscale
+
+		Attributes:
+		  3 trig
+			4 pos_b
+			5 pos_c
+			6 mask
+
+		Other:
+		  9 width
+			10 height
+
+		Outputs:
+		  tp
+			tr
+			shading
+	 */
+		const char *vs_source =
+			"uniform float xscale, yscale;\n"
+			"attribute vec3 pos_b, pos_c;\n"
+			"attribute vec3 trig, mask;\n"
+			"varying vec3 tp, tr;\n"
+			"varying float shading;\n"
+			"void main() {\n"
+			"  vec4 p0 = gl_ModelViewProjectionMatrix * gl_Vertex;\n"
+			"  vec4 p1 = gl_ModelViewProjectionMatrix * vec4(pos_b, 1.0);\n"
+			"  vec4 p2 = gl_ModelViewProjectionMatrix * vec4(pos_c, 1.0);\n"
+			"  float a = distance(vec2(xscale*p1.x/p1.w, yscale*p1.y/p1.w), vec2(xscale*p2.x/p2.w, yscale*p2.y/p2.w));\n"
+			"  float b = distance(vec2(xscale*p0.x/p0.w, yscale*p0.y/p0.w), vec2(xscale*p1.x/p1.w, yscale*p1.y/p1.w));\n"
+			"  float c = distance(vec2(xscale*p0.x/p0.w, yscale*p0.y/p0.w), vec2(xscale*p2.x/p2.w, yscale*p2.y/p2.w));\n"
+			"  float s = (a + b + c) / 2.0;\n"
+			"  float A = sqrt(s*(s-a)*(s-b)*(s-c));\n"
+			"  float ha = 2.0*A/a;\n"
+			"  gl_Position = p0;\n"
+			"  tp = mask * ha;\n"
+			"  tr = trig;\n"
+			"  vec3 normal, lightDir;\n"
+			"  normal = normalize(gl_NormalMatrix * gl_Normal);\n"
+			"  lightDir = normalize(vec3(gl_LightSource[0].position));\n"
+			"  shading = abs(dot(normal, lightDir));\n"
+			"}\n";
+
+		/*
+			Inputs:
+			  tp && tr - if any components of tp < tr, use color2 (edge color)
+				shading  - multiplied by color1. color2 is is without lighting
+		 */
+		const char *fs_source =
+			"uniform vec4 color1, color2;\n"
+			"varying vec3 tp, tr, tmp;\n"
+			"varying float shading;\n"
+			"void main() {\n"
+			"  gl_FragColor = vec4(color1.r * shading, color1.g * shading, color1.b * shading, color1.a);\n"
+			"  if (tp.x < tr.x || tp.y < tr.y || tp.z < tr.z)\n"
+			"    gl_FragColor = color2;\n"
+			"}\n";
+
+		GLuint vs = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vs, 1, (const GLchar**)&vs_source, NULL);
+		glCompileShader(vs);
+
+		GLuint fs = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fs, 1, (const GLchar**)&fs_source, NULL);
+		glCompileShader(fs);
+
+		GLuint edgeshader_prog = glCreateProgram();
+		glAttachShader(edgeshader_prog, vs);
+		glAttachShader(edgeshader_prog, fs);
+		glLinkProgram(edgeshader_prog);
+
+		GLint shaderinfo[11];
+
+		shaderinfo[0] = edgeshader_prog;
+		shaderinfo[1] = glGetUniformLocation(edgeshader_prog, "color1");
+		shaderinfo[2] = glGetUniformLocation(edgeshader_prog, "color2");
+		shaderinfo[3] = glGetAttribLocation(edgeshader_prog, "trig");
+		shaderinfo[4] = glGetAttribLocation(edgeshader_prog, "pos_b");
+		shaderinfo[5] = glGetAttribLocation(edgeshader_prog, "pos_c");
+		shaderinfo[6] = glGetAttribLocation(edgeshader_prog, "mask");
+		shaderinfo[7] = glGetUniformLocation(edgeshader_prog, "xscale");
+		shaderinfo[8] = glGetUniformLocation(edgeshader_prog, "yscale");
+
+		GLenum err = glGetError();
+		if (err != GL_NO_ERROR) {
+			PRINTB( "OpenGL Error: %s\n", gluErrorString(err));
+		}
+
+		GLint status;
+		glGetProgramiv(edgeshader_prog, GL_LINK_STATUS, &status);
+		if (status == GL_FALSE) {
+			int loglen;
+			char logbuffer[1000];
+			glGetProgramInfoLog(edgeshader_prog, sizeof(logbuffer), &loglen, logbuffer);
+			PRINTB( "OpenGL Program Linker Error:\n%.*s", std::string(logbuffer).c_str());
+		} else {
+			int loglen;
+			char logbuffer[1000];
+			glGetProgramInfoLog(edgeshader_prog, sizeof(logbuffer), &loglen, logbuffer);
+			if (loglen > 0) {
+				PRINTB( "OpenGL Program Link OK:\n%.*s",  std::string(logbuffer).c_str());
+			}
+			glValidateProgram(edgeshader_prog);
+			glGetProgramInfoLog(edgeshader_prog, sizeof(logbuffer), &loglen, logbuffer);
+			if (loglen > 0) {
+				PRINTB( "OpenGL Program Validation results:\n%.*s",  std::string(logbuffer).c_str());
+			}
+		}
+	}
+	GLenum err = glewInit();
+	if (GLEW_OK != err) {
+		PRINTB( "GLEW Error: %s\n", glewGetErrorString(err));
+	}
+
+	GLint rbits, gbits, bbits, abits, dbits, sbits;
+	glGetIntegerv(GL_RED_BITS, &rbits);
+	glGetIntegerv(GL_GREEN_BITS, &gbits);
+	glGetIntegerv(GL_BLUE_BITS, &bbits);
+	glGetIntegerv(GL_ALPHA_BITS, &abits);
+	glGetIntegerv(GL_DEPTH_BITS, &dbits);
+	glGetIntegerv(GL_STENCIL_BITS, &sbits);
+
+	std::stringstream info;
+	info << "GLEW version " <<  glewGetString(GLEW_VERSION)
+	  << "\nOpenGL version " << glGetString(GL_VERSION) << " "
+	  << glGetString(GL_RENDERER) << "(" <<  glGetString(GL_VENDOR) << ")"
+	  << "\nRGBA(" <<  rbits<< gbits << bbits << abits << ")"
+	  << "\ndepth(" << dbits << "), stencil(" << sbits << ")"
+	  << "\nExtensions:\n" << glGetString(GL_EXTENSIONS);
+
+	return si;
+}
+#endif // ENABLE_OPENCSG
 
 class OpenCSGPrim : public OpenCSG::Primitive
 {

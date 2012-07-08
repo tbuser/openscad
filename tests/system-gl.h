@@ -1,6 +1,8 @@
 #ifndef SYSTEMGL_H_
 #define SYSTEMGL_H_
 
+#define SHADERINFO_COUNT 11
+
 #include <GL/glew.h>
 #include <string>
 

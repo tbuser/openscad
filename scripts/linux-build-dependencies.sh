@@ -27,6 +27,19 @@ printUsage()
   echo
 }
 
+build_ascii_viewer()
+{
+  cd $BASEDIR/src
+  curl -LO http://downloads.sourceforge.net/project/aa-project/aa-lib/1.4rc4/aalib-1.4rc4.tar.gz
+  curl -LO http://downloads.sourceforge.net/project/aa-project/aview/1.3.0rc1/aview-1.3.0rc1.tar.gz
+  tar -zxvf aalib-1.4rc4.tar.gz
+  tar -zxvf aview-1.3.0rc1.tar.gz
+  cd $BASEDIR/src/aalib-1.4.0
+  ./configure --prefix=$DEPLOYDIR && make -j$NUMCPU && make install
+  cd $BASEDIR/src/aview-1.3.0
+  ./configure --prefix=$DEPLOYDIR && make -j$NUMCPU && make install
+}
+
 build_git()
 {
   version=$1
@@ -263,7 +276,7 @@ fi
 build_eigen 2.0.17
 build_gmp 5.0.5
 build_mpfr 3.1.1
-build_boost 1.47.0
+build_boost 1.50.0
 # NB! For CGAL, also update the actual download URL in the function
 build_cgal 4.0
 build_glew 1.7.0

@@ -5,12 +5,13 @@
 #include <string>
 
 #ifdef ENABLE_CGAL
+#include "node.h"
 
 void export_stl(class CGAL_Nef_polyhedron *root_N, std::ostream &output);
 void export_off(CGAL_Nef_polyhedron *root_N, std::ostream &output);
 void export_dxf(CGAL_Nef_polyhedron *root_N, std::ostream &output);
-void export_png(CGAL_Nef_polyhedron *root_N, std::string outfile, std::string renderer);
-
+void export_png_cgal( CGAL_Nef_polyhedron *root_N, std::string outfile );
+void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile );
 #endif
 
 #ifdef DEBUG

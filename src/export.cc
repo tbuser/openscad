@@ -29,21 +29,147 @@
 #include "polyset.h"
 #include "dxfdata.h"
 
+#include "OffscreenView.h"
+#include "bboxhelp.h"
+
+#ifdef ENABLE_OPENCSG
+#include <boost/foreach.hpp>
+#include <opencsg.h>
+#include "OpenCSGRenderer.h"
+#include "CSGTermEvaluator.h"
+#include "csgterm.h"
+#include "csgtermnormalizer.h"
+#include "node.h"
+#include "module.h"
+#include "polyset.h"
+#include "builtin.h"
+#include "Tree.h"
+#include "CGALEvaluator.h"
+
+class CsgInfo
+{
+public:
+        CsgInfo();
+        shared_ptr<CSGTerm> root_norm_term;          // Normalized CSG products
+        class CSGChain *root_chain;
+        std::vector<shared_ptr<CSGTerm> > highlight_terms;
+        CSGChain *highlights_chain;
+        std::vector<shared_ptr<CSGTerm> > background_terms;
+        CSGChain *background_chain;
+        OffscreenView *glview;
+};
+
+CsgInfo::CsgInfo() {
+        root_chain = NULL;
+        highlights_chain = NULL;
+        background_chain = NULL;
+        glview = NULL;
+}
+
+AbstractNode *find_root_tag(AbstractNode *n)
+{
+        BOOST_FOREACH(AbstractNode *v, n->children) {
+                if (v->modinst->tag_root) return v;
+                if (AbstractNode *vroot = find_root_tag(v)) return vroot;
+        }
+        return NULL;
+}
+
+void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )
+{
+        CsgInfo csgInfo = CsgInfo();
+	try {
+		csgInfo.glview = new OffscreenView(512,512);
+	} catch (int error) {
+		PRINT("Can't create OpenGL OffscreenView. Exiting.\n");
+		return;
+	};
+        shared_ptr<CSGTerm> root_raw_term;
+        // Do we have an explicit root node (! modifier)?
+	AbstractNode *root_node = find_root_tag(absolute_root_node);
+	if (!root_node) root_node = absolute_root_node;
+
+	Tree tree(root_node);
+
+        CGALEvaluator cgalevaluator(tree);
+        CSGTermEvaluator evaluator(tree, &cgalevaluator.psevaluator);
+	root_raw_term = evaluator.evaluateCSGTerm(*root_node, csgInfo.highlight_terms, csgInfo.background_terms);
+
+        if (!root_raw_term) {
+                PRINT("Error: CSG generation failed! (no top level object found)\n");
+                return;
+        }
+
+        // CSG normalization
+        CSGTermNormalizer normalizer(5000);
+        csgInfo.root_norm_term = normalizer.normalize(root_raw_term);
+        if (csgInfo.root_norm_term) {
+                csgInfo.root_chain = new CSGChain();
+                csgInfo.root_chain->import(csgInfo.root_norm_term);
+                PRINTB( "Normalized CSG tree has %d elements", int(csgInfo.root_chain->polysets.size()));
+        }
+        else {
+                csgInfo.root_chain = NULL;
+                PRINT( "WARNING: CSG normalization resulted in an empty tree\n");
+        }
+        if (csgInfo.highlight_terms.size() > 0) {
+                PRINTB("Compiling highlights (%i CSG Trees)...\n",csgInfo.highlight_terms.size() );
+                csgInfo.highlights_chain = new CSGChain();
+                for (unsigned int i = 0; i < csgInfo.highlight_terms.size(); i++) {
+                        csgInfo.highlight_terms[i] = normalizer.normalize(csgInfo.highlight_terms[i]);
+                        csgInfo.highlights_chain->import(csgInfo.highlight_terms[i]);
+                }
+        }
+        if (csgInfo.background_terms.size() > 0) {
+                PRINTB("Compiling backgrounds (%i CSG Trees)...\n",csgInfo.background_terms.size() );
+                csgInfo.background_chain = new CSGChain();
+                for (unsigned int i = 0; i < csgInfo.background_terms.size(); i++) {
+                        csgInfo.background_terms[i] = normalizer.normalize(csgInfo.background_terms[i]);
+                        csgInfo.background_chain->import(csgInfo.background_terms[i]);
+                }
+        }
+
+        Vector3d center(0,0,0);
+        double radius = 1.0;
+
+        if (csgInfo.root_chain) {
+                BoundingBox bbox = csgInfo.root_chain->getBoundingBox();
+                center = (bbox.min() + bbox.max()) / 2;
+                radius = (bbox.max() - bbox.min()).norm() / 2;
+        }
+
+        Vector3d cameradir(1, 1, -0.5);
+        Vector3d camerapos = center - radius*1.8*cameradir;
+        csgInfo.glview->setCamera(camerapos, center);
+
+        OpenCSGRenderer opencsgRenderer(csgInfo.root_chain, csgInfo.highlights_chain, csgInfo.background_chain, csgInfo.glview->shaderinfo);
+	csgInfo.glview->setRenderer(&opencsgRenderer);
+
+        OpenCSG::setContext(csgInfo.glview->opencsg_id);
+        OpenCSG::setOption(OpenCSG::OffscreenSetting, OpenCSG::FrameBufferObject);
+
+        csgInfo.glview->paintGL();
+        csgInfo.glview->save(outfile.c_str());
+
+        Builtins::instance(true);
+}
+
+#endif //ENABLE_OPENCSG
+
+
+
 #ifdef ENABLE_CGAL
 
-#include "OffscreenView.h"
 #include "CGAL_renderer.h"
 #include "CGALRenderer.h"
-#include "bboxhelp.h"
 
 #include "CGAL_Nef_polyhedron.h"
 #include "cgal.h"
 
-void export_png(CGAL_Nef_polyhedron *root_N, std::string outfile, std::string renderer)
+
+void export_png_cgal( CGAL_Nef_polyhedron *root_N, std::string outfile )
 {
-	assert(root_N!=NULL);
-	renderer = "CGAL";
-	OffscreenView *glview;
+	OffscreenView *glview=NULL;
 	try {
 		glview = new OffscreenView(512,512);
 	} catch (int error) {
@@ -51,6 +177,7 @@ void export_png(CGAL_Nef_polyhedron *root_N, std::string outfile, std::string re
 		return;
 	};
 
+	assert(root_N!=NULL);
 	CGALRenderer cgalRenderer(*root_N);
 
         BoundingBox bbox;
@@ -64,6 +191,7 @@ void export_png(CGAL_Nef_polyhedron *root_N, std::string outfile, std::string re
 
 	//cout << bbox.min() << "\n" << bbox.max() << "\n";
 
+
 	Vector3d center = getBoundingCenter(bbox);
         double radius = getBoundingRadius(bbox);
 
@@ -76,6 +204,7 @@ void export_png(CGAL_Nef_polyhedron *root_N, std::string outfile, std::string re
         glview->save(outfile.c_str());
 
 }
+
 
 /*!
 	Saves the current 3D CGAL Nef polyhedron as STL to the given file.

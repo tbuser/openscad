@@ -42,7 +42,7 @@ public:
 	double object_trans_x;
 	double object_trans_y;
 	double object_trans_z;
-	GLint shaderinfo[11];
+	GLint shaderinfo[SHADERINFO_COUNT];
 
 #ifdef ENABLE_OPENCSG
 	bool opencsg_support;

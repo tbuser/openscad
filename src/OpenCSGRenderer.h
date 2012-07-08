@@ -4,6 +4,18 @@
 #include "renderer.h"
 #include "system-gl.h"
 
+#include <string>
+
+class OpenCSGShaderInfo
+{
+public:
+  bool is_opencsg_capable, has_shaders;
+  std::string glinfo;
+  GLint shaderinfo[SHADERINFO_COUNT];
+};
+
+OpenCSGShaderInfo enable_opencsg_shaders();
+
 class OpenCSGRenderer : public Renderer
 {
 public:

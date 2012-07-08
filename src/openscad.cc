@@ -69,7 +69,7 @@ namespace fs = boost::filesystem;
 
 static void help(const char *progname)
 {
-	fprintf(stderr, "Usage: %s [ -o output_file [ -d deps_file ] ]\\\n"
+	fprintf(stderr, "Usage: %s [ -o output_file [ -d deps_file ] ] [ --preview ] \\\n"
 					"%*s[ -m make_command ] [ -D var=val [..] ] filename\n",
 					progname, int(strlen(progname))+8, "");
 	exit(1);
@@ -93,10 +93,99 @@ string examplesdir;
 class Options
 {
 public:
+	Options();
 	string input_file, output_file, deps_output_file;
 	bool useGUI, preview_mode;
 	po::variables_map vm;
 };
+
+Options::Options()
+{
+	input_file = output_file = deps_output_file = "";
+	useGUI = preview_mode = false;
+}
+
+Options parse_options( int argc, char **argv )
+{
+	Options opts = Options();
+	po::options_description desc("Allowed options");
+	desc.add_options()
+		("help,h", "help message")
+		("version,v", "print the version")
+		("preview", "use preview renderer when creating images")
+		("o,o", po::value<string>(), "out-file")
+		("s,s", po::value<string>(), "stl-file")
+		("x,x", po::value<string>(), "dxf-file")
+		("d,d", po::value<string>(), "deps-file")
+		("m,m", po::value<string>(), "makefile")
+		("D,D", po::value<vector<string> >(), "var=val");
+
+	po::options_description hidden("Hidden options");
+	hidden.add_options()
+		("input-file", po::value< vector<string> >(), "input file");
+
+	po::positional_options_description p;
+	p.add("input-file", -1);
+
+	po::options_description all_options;
+	all_options.add(desc).add(hidden);
+
+	try {
+		po::store(po::command_line_parser(argc, argv).options(all_options).positional(p).run(), opts.vm);
+	}
+	catch(std::exception &e) { // Catches e.g. unknown options
+		fprintf(stderr, "%s\n", e.what());
+		help(argv[0]);
+	}
+
+	if (opts.vm.count("help")) help(argv[0]);
+	if (opts.vm.count("version")) version();
+	if (opts.vm.count("preview")) opts.preview_mode=true;
+
+	if (opts.vm.count("o")) {
+		// FIXME: Allow for multiple output files?
+		if (opts.output_file!="") help(argv[0]);
+		opts.output_file = opts.vm["o"].as<string>();
+	}
+	if (opts.vm.count("s")) {
+		fprintf(stderr, "DEPRECATED: The -s option is deprecated. Use -o instead.\n");
+		if (opts.output_file!="") help(argv[0]);
+		opts.output_file = opts.vm["s"].as<string>();
+	}
+	if (opts.vm.count("x")) {
+		fprintf(stderr, "DEPRECATED: The -x option is deprecated. Use -o instead.\n");
+		if (opts.output_file!="") help(argv[0]);
+		opts.output_file = opts.vm["x"].as<string>();
+	}
+	if (opts.vm.count("d")) {
+		if (opts.deps_output_file!="")
+			help(argv[0]);
+	}
+	opts.deps_output_file = opts.vm.count("d") ? opts.vm["d"].as<string>() : "";
+
+	if (opts.vm.count("m")) {
+		if (make_command)
+			help(argv[0]);
+		make_command = opts.vm["m"].as<string>().c_str();
+	}
+
+	if (opts.vm.count("input-file")) {
+		opts.input_file = *opts.vm["input-file"].as< vector<string> >().begin();
+	}
+
+	if (opts.vm.count("D")) {
+		const vector<string> &commands = opts.vm["D"].as<vector<string> >();
+
+		for (vector<string>::const_iterator i = commands.begin(); i != commands.end(); i++) {
+			commandline_commands += *i;
+			commandline_commands += ";\n";
+		}
+	}
+
+	return opts;
+}
+
+
 
 
 int start_qt_gui( Options opts, int argc, char ** argv, fs::path original_path )
@@ -137,6 +226,7 @@ int start_qt_gui( Options opts, int argc, char ** argv, fs::path original_path )
 	}
 	app.connect(&app, SIGNAL(lastWindowClosed()), &app, SLOT(quit()));
 #else
+	original_path = original_path; // stop compiler warning when MDI disabled
 	MainWindow *m = new MainWindow(qfilename);
 	app.connect(m, SIGNAL(destroyed()), &app, SLOT(quit()));
 #endif
@@ -173,13 +263,11 @@ void render_to_file( Options opts, fs::path original_path )
 		exit(1);
 	}
 
-#ifdef ENABLE_CGAL
 	Context root_ctx;
 	register_builtin(root_ctx);
 
 	Module *root_module;
 	ModuleInstantiation root_inst;
-	AbstractNode *root_node;
 
 	handle_dep(opts.input_file);
 
@@ -201,9 +289,11 @@ void render_to_file( Options opts, fs::path original_path )
 	fs::current_path(fparent);
 
 	AbstractNode::resetIndexCounter();
-	root_node = root_module->evaluate(&root_ctx, &root_inst);
-	tree.setRoot(root_node);
+	AbstractNode *absolute_root_node;
+	absolute_root_node = root_module->evaluate(&root_ctx, &root_inst);
+	tree.setRoot(absolute_root_node);
 
+#ifdef ENABLE_CGAL
 	if (csg_output_file) {
 		fs::current_path(original_path);
 		std::ofstream fstream(csg_output_file);
@@ -212,7 +302,7 @@ void render_to_file( Options opts, fs::path original_path )
 		}
 		else {
 			fs::current_path(fparent); // Force exported filenames to be relative to document path
-			fstream << tree.getString(*root_node) << "\n";
+			fstream << tree.getString(*absolute_root_node) << "\n";
 			fstream.close();
 		}
 	}
@@ -282,12 +372,13 @@ void render_to_file( Options opts, fs::path original_path )
 		}
 
 		if (png_output_file) {
-			// can't use fstream because of the way
-			// 'imageutils-macosx.cc' & etc works
-			export_png(&root_N, png_output_file, "CGAL");
+			if (opts.preview_mode)
+				export_png_opencsg( absolute_root_node, png_output_file );
+			else
+				export_png_cgal(&root_N, png_output_file);
 		}
 	}
-	delete root_node;
+	delete absolute_root_node;
 #else
 	fprintf(stderr, "OpenSCAD has been compiled without CGAL support!\n");
 	exit(1);
@@ -317,87 +408,9 @@ string find_examples( fs::path exdir )
 }
 
 
-Options parse_options( int argc, char **argv )
-{
-	Options opts;
-	po::options_description desc("Allowed options");
-	desc.add_options()
-		("help,h", "help message")
-		("version,v", "print the version")
-		("o,o", po::value<string>(), "out-file")
-		("s,s", po::value<string>(), "stl-file")
-		("x,x", po::value<string>(), "dxf-file")
-		("d,d", po::value<string>(), "deps-file")
-		("m,m", po::value<string>(), "makefile")
-		("D,D", po::value<vector<string> >(), "var=val");
-
-	po::options_description hidden("Hidden options");
-	hidden.add_options()
-		("input-file", po::value< vector<string> >(), "input file");
-
-	po::positional_options_description p;
-	p.add("input-file", -1);
-
-	po::options_description all_options;
-	all_options.add(desc).add(hidden);
-
-	try {
-		po::store(po::command_line_parser(argc, argv).options(all_options).positional(p).run(), opts.vm);
-	}
-	catch(std::exception &e) { // Catches e.g. unknown options
-		fprintf(stderr, "%s\n", e.what());
-		help(argv[0]);
-	}
-
-	if (opts.vm.count("help")) help(argv[0]);
-	if (opts.vm.count("version")) version();
-
-	if (opts.vm.count("o")) {
-		// FIXME: Allow for multiple output files?
-		if (opts.output_file!="") help(argv[0]);
-		opts.output_file = opts.vm["o"].as<string>();
-	}
-	if (opts.vm.count("s")) {
-		fprintf(stderr, "DEPRECATED: The -s option is deprecated. Use -o instead.\n");
-		if (opts.output_file!="") help(argv[0]);
-		opts.output_file = opts.vm["s"].as<string>();
-	}
-	if (opts.vm.count("x")) {
-		fprintf(stderr, "DEPRECATED: The -x option is deprecated. Use -o instead.\n");
-		if (opts.output_file!="") help(argv[0]);
-		opts.output_file = opts.vm["x"].as<string>();
-	}
-	if (opts.vm.count("d")) {
-		if (opts.deps_output_file!="")
-			help(argv[0]);
-	}
-	opts.deps_output_file = opts.vm.count("d") ? opts.vm["d"].as<string>() : "";
-
-	if (opts.vm.count("m")) {
-		if (make_command)
-			help(argv[0]);
-		make_command = opts.vm["m"].as<string>().c_str();
-	}
-
-	if (opts.vm.count("input-file")) {
-		opts.input_file = *opts.vm["input-file"].as< vector<string> >().begin();
-	}
-
-	if (opts.vm.count("D")) {
-		const vector<string> &commands = opts.vm["D"].as<vector<string> >();
-
-		for (vector<string>::const_iterator i = commands.begin(); i != commands.end(); i++) {
-			commandline_commands += *i;
-			commandline_commands += ";\n";
-		}
-	}
-
-	return opts;
-}
-
-
 int main(int argc, char **argv)
 {
+	fs::path original_path = fs::current_path();
 	int rc = 0;
 	Options opts = parse_options( argc, argv );
 	if (opts.input_file=="") help(argv[0]);
@@ -427,7 +440,6 @@ int main(int argc, char **argv)
 
 	Builtins::instance()->initialize();
 
-	fs::path original_path = fs::current_path();
 
 	currentdir = boosty::stringy( fs::current_path() );
 
