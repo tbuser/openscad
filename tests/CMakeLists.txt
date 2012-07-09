@@ -317,7 +317,6 @@ add_definitions(-DOPENSCAD_VERSION=test -DOPENSCAD_YEAR=2011 -DOPENSCAD_MONTH=10
 add_definitions(-DOPENSCAD_TESTING)
 
 set(CORE_SOURCES
-  tests-common.cc 
   ../src/parsersettings.cc
   ../src/mathc99.cc
   ../src/linalg.cc

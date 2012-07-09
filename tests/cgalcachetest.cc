@@ -24,7 +24,6 @@
  *
  */
 
-#include "tests-common.h"
 #include "openscad.h"
 #include "printutils.h"
 #include "parsersettings.h"
