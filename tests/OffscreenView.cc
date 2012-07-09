@@ -18,7 +18,9 @@ OffscreenView::OffscreenView(size_t width, size_t height)
 	: object_rot(35, 0, 25), camera_eye(0, 0, 0), camera_center(0, 0, 0),
 		orthomode(false), showaxes(false), showfaces(true), showedges(false)
 {
+#ifdef ENABLE_OPENCSG
 	this->opencsg_glinfo = OpenCSG_GLInfo();
+#endif
 	this->ctx = create_offscreen_context(width, height);
 	if ( this->ctx == NULL ) throw -1;
 
