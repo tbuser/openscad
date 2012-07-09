@@ -285,23 +285,23 @@ void render_to_file( Options opts, fs::path original_path )
 
 	fs::path abspath = boosty::absolute(opts.input_file);
 	string parentpath = boosty::stringy(abspath.parent_path());
+
 	AbstractModule *root_module = parsefile( opts.input_file, parentpath );
 	ModuleInstantiation root_inst;
-
 	if (!root_module) exit(1);
-	fs::current_path( abspath.parent_path() );
 
+	if (abspath.has_parent_path())
+		fs::current_path( abspath.parent_path(b) );
 
 	AbstractNode::resetIndexCounter();
-	AbstractNode *absolute_root_node;
-	absolute_root_node = root_module->evaluate(&root_ctx, &root_inst);
-	tree.setRoot(absolute_root_node);
+	AbstractNode *absolute_root_node = root_module->evaluate(&root_ctx, &root_inst);
 
 #include <iostream>
 	std::cout << "preview mode" << opts.preview_mode << "\n";
 
 #ifdef ENABLE_CGAL
 	if (csg_output_file) {
+		tree.setRoot(absolute_root_node);
 		fs::current_path(original_path);
 		std::ofstream fstream(csg_output_file);
 		if (!fstream.is_open()) {
@@ -317,6 +317,7 @@ void render_to_file( Options opts, fs::path original_path )
 		export_png_opencsg( absolute_root_node, png_output_file );
 	}
 	else {
+		tree.setRoot(absolute_root_node);
 		CGAL_Nef_polyhedron root_N = cgalevaluator.evaluateCGALMesh(*tree.root());
 
 		fs::current_path(original_path);
