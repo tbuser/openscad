@@ -1,7 +1,6 @@
 // csg test core, used by throwntegether test and opencsg test
 #include "csgtestcore.h"
 
-#include "tests-common.h"
 #include "system-gl.h"
 #include "openscad.h"
 #include "parsersettings.h"

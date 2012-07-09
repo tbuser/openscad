@@ -24,6 +24,10 @@ OffscreenView::OffscreenView(size_t width, size_t height)
 	this->ctx = create_offscreen_context(width, height);
 	if ( this->ctx == NULL ) throw -1;
 
+#ifdef ENABLE_OPENCSG
+	this->opencsg_glinfo = enable_opencsg_shaders();
+#endif
+
 	initializeGL();
 	resizeGL(width, height);
 }
@@ -62,9 +66,6 @@ void OffscreenView::initializeGL()
 	glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE);
 	glEnable(GL_COLOR_MATERIAL);
 
-#ifdef ENABLE_OPENCSG
-        this->opencsg_glinfo = enable_opencsg_shaders();
-#endif
 }
 
 void OffscreenView::resizeGL(int w, int h)

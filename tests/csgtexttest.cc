@@ -24,7 +24,6 @@
  *
  */
 
-#include "tests-common.h"
 #include "CSGTextRenderer.h"
 #include "CSGTextCache.h"
 #include "openscad.h"

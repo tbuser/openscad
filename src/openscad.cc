@@ -235,9 +235,27 @@ int start_qt_gui( Options opts, int argc, char ** argv, fs::path original_path )
 	return app.exec();
 }
 
+Module *parsefile( std::string filename, std::parentpath )
+{
+	handle_dep( filename );
+	std::ifstream ifs(opts.input_file.c_str());
+	AbstractModuel *result = NULL;
+	if (!ifs.is_open()) {
+		fprintf(stderr, "Can't open input file '%s'!\n", opts.input_file.c_str());
+	} else {
+		string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		text += "\n" + commandline_commands;
+		result = parse(text.c_str(), parentpath.c_str(), false);
+	}
+	if (result) result->handleDependencies();
+	return result
+}
 
 void render_to_file( Options opts, fs::path original_path )
 {
+	Context root_ctx;
+	register_builtin(root_ctx);
+
 	// Initialize global visitors
 	NodeCache nodecache;
 	NodeDumper dumper(nodecache);
@@ -265,41 +283,25 @@ void render_to_file( Options opts, fs::path original_path )
 		exit(1);
 	}
 
-	Context root_ctx;
-	register_builtin(root_ctx);
-
-	Module *root_module;
-	ModuleInstantiation root_inst;
-
-	handle_dep(opts.input_file);
-
-	std::ifstream ifs(opts.input_file.c_str());
-	if (!ifs.is_open()) {
-		fprintf(stderr, "Can't open input file '%s'!\n", opts.input_file.c_str());
-		exit(1);
-	}
-	string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-	text += "\n" + commandline_commands;
 	fs::path abspath = boosty::absolute(opts.input_file);
 	string parentpath = boosty::stringy(abspath.parent_path());
-	root_module = parse(text.c_str(), parentpath.c_str(), false);
-	if (!root_module) exit(1);
-	root_module->handleDependencies();
 
-	fs::path fpath = boosty::absolute(fs::path(opts.input_file));
-	fs::path fparent = fpath.parent_path();
-	fs::current_path(fparent);
+	AbstractModule *root_module = parsefile( opts.input_file, parentpath );
+	ModuleInstantiation root_inst;
+	if (!root_module) exit(1);
+
+	if (abspath.has_parent_path())
+		fs::current_path( abspath.parent_path(b) );
 
 	AbstractNode::resetIndexCounter();
-	AbstractNode *absolute_root_node;
-	absolute_root_node = root_module->evaluate(&root_ctx, &root_inst);
-	tree.setRoot(absolute_root_node);
+	AbstractNode *absolute_root_node = root_module->evaluate(&root_ctx, &root_inst);
 
 #include <iostream>
 	std::cout << "preview mode" << opts.preview_mode << "\n";
 
 #ifdef ENABLE_CGAL
 	if (csg_output_file) {
+		tree.setRoot(absolute_root_node);
 		fs::current_path(original_path);
 		std::ofstream fstream(csg_output_file);
 		if (!fstream.is_open()) {
@@ -315,6 +317,7 @@ void render_to_file( Options opts, fs::path original_path )
 		export_png_opencsg( absolute_root_node, png_output_file );
 	}
 	else {
+		tree.setRoot(absolute_root_node);
 		CGAL_Nef_polyhedron root_N = cgalevaluator.evaluateCGALMesh(*tree.root());
 
 		fs::current_path(original_path);
@@ -453,6 +456,7 @@ int main(int argc, char **argv)
 	examplesdir = find_examples( exec_dir );
 
 	parser_init( boosty::stringy( exec_dir ) );
+	add_librarydir( exec_dir / "../libraries" );
 
 	if (opts.output_file!="") {
 		if (opts.input_file=="") help(argv[0]);

@@ -68,23 +68,20 @@ CsgInfo::CsgInfo() {
 
 void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )
 {
-	CsgInfo csgInfo = CsgInfo();
-	try {
-		csgInfo.glview = new OffscreenView(512,512);
-	} catch (int error) {
-		PRINT("Can't create OpenGL OffscreenView. Exiting.\n");
-		return;
-	};
-	shared_ptr<CSGTerm> root_raw_term;
+	assert(absolute_root_node);
 	// Do we have an explicit root node (! modifier)?
 	AbstractNode *root_node = find_root_tag(absolute_root_node);
 	if (!root_node) root_node = absolute_root_node;
-
 	Tree tree(root_node);
 
+	CsgInfo csgInfo = CsgInfo();
 	CGALEvaluator cgalevaluator(tree);
 	CSGTermEvaluator evaluator(tree, &cgalevaluator.psevaluator);
-	root_raw_term = evaluator.evaluateCSGTerm(*root_node, csgInfo.highlight_terms, csgInfo.background_terms);
+
+	shared_ptr<CSGTerm> root_raw_term = evaluator.evaluateCSGTerm(
+		*root_node,
+		csgInfo.highlight_terms,
+		csgInfo.background_terms);
 
 	if (!root_raw_term) {
 		PRINT("Error: CSG generation failed! (no top level object found)\n");
@@ -119,6 +116,13 @@ void export_png_opencsg( AbstractNode *absolute_root_node, std::string outfile )
 			csgInfo.background_chain->import(csgInfo.background_terms[i]);
 		}
 	}
+
+	try {
+		csgInfo.glview = new OffscreenView(512,512);
+	} catch (int error) {
+		PRINT("Can't create OpenGL OffscreenView. Exiting.\n");
+		return;
+	};
 
 	Vector3d center(0,0,0);
 	double radius = 1.0;

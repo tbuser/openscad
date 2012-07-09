@@ -24,7 +24,6 @@
  *
  */
 
-#include "tests-common.h"
 #include "PolySetEvaluator.h"
 #include "CSGTermEvaluator.h"
 #include "openscad.h"
