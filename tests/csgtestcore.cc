@@ -179,15 +179,15 @@ void enable_opencsg_shaders( OffscreenView *glview )
 		glAttachShader(edgeshader_prog, fs);
 		glLinkProgram(edgeshader_prog);
 
-		glview->shaderinfo[0] = edgeshader_prog;
-		glview->shaderinfo[1] = glGetUniformLocation(edgeshader_prog, "color1");
-		glview->shaderinfo[2] = glGetUniformLocation(edgeshader_prog, "color2");
-		glview->shaderinfo[3] = glGetAttribLocation(edgeshader_prog, "trig");
-		glview->shaderinfo[4] = glGetAttribLocation(edgeshader_prog, "pos_b");
-		glview->shaderinfo[5] = glGetAttribLocation(edgeshader_prog, "pos_c");
-		glview->shaderinfo[6] = glGetAttribLocation(edgeshader_prog, "mask");
-		glview->shaderinfo[7] = glGetUniformLocation(edgeshader_prog, "xscale");
-		glview->shaderinfo[8] = glGetUniformLocation(edgeshader_prog, "yscale");
+		glview->opencsg_glinfo.shaderinfo[0] = edgeshader_prog;
+		glview->opencsg_glinfo.shaderinfo[1] = glGetUniformLocation(edgeshader_prog, "color1");
+		glview->opencsg_glinfo.shaderinfo[2] = glGetUniformLocation(edgeshader_prog, "color2");
+		glview->opencsg_glinfo.shaderinfo[3] = glGetAttribLocation(edgeshader_prog, "trig");
+		glview->opencsg_glinfo.shaderinfo[4] = glGetAttribLocation(edgeshader_prog, "pos_b");
+		glview->opencsg_glinfo.shaderinfo[5] = glGetAttribLocation(edgeshader_prog, "pos_c");
+		glview->opencsg_glinfo.shaderinfo[6] = glGetAttribLocation(edgeshader_prog, "mask");
+		glview->opencsg_glinfo.shaderinfo[7] = glGetUniformLocation(edgeshader_prog, "xscale");
+		glview->opencsg_glinfo.shaderinfo[8] = glGetUniformLocation(edgeshader_prog, "yscale");
 
 		GLenum err = glGetError();
 		if (err != GL_NO_ERROR) {
@@ -215,8 +215,8 @@ void enable_opencsg_shaders( OffscreenView *glview )
 			}
 		}
 	}
-	glview->shaderinfo[9] = glview->width;
-	glview->shaderinfo[10] = glview->height;
+	glview->opencsg_glinfo.shaderinfo[9] = glview->width;
+	glview->opencsg_glinfo.shaderinfo[10] = glview->height;
 }
 
 int csgtestcore(int argc, char *argv[], test_type_e test_type)
@@ -348,7 +348,7 @@ int csgtestcore(int argc, char *argv[], test_type_e test_type)
 	Vector3d camerapos = center - radius*1.8*cameradir;
 	csgInfo.glview->setCamera(camerapos, center);
 
-	OpenCSGRenderer opencsgRenderer(csgInfo.root_chain, csgInfo.highlights_chain, csgInfo.background_chain, csgInfo.glview->shaderinfo);
+	OpenCSGRenderer opencsgRenderer(csgInfo.root_chain, csgInfo.highlights_chain, csgInfo.background_chain, &csgInfo.glview->opencsg_glinfo);
 	ThrownTogetherRenderer thrownTogetherRenderer(csgInfo.root_chain, csgInfo.highlights_chain, csgInfo.background_chain);
 
 	if (test_type == TEST_THROWNTOGETHER)
