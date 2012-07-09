@@ -56,6 +56,7 @@
 #include "AppleEvents.h"
 #endif
 
+#include <boost/algorithm/string.hpp>
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include "boosty.h"
@@ -253,7 +254,7 @@ void render_to_file( Options opts, fs::path original_path )
 	const char *png_output_file = NULL;
 	fs::path outpath(opts.output_file);
 	string suffix = boosty::stringy( outpath.extension() );
-	std::transform(suffix.begin(),suffix.end(),suffix.begin(),::tolower);
+	boost::algorithm::to_lower( suffix );
 	if (suffix == ".stl") stl_output_file = opts.output_file.c_str();
 	else if (suffix == ".off") off_output_file = opts.output_file.c_str();
 	else if (suffix == ".dxf") dxf_output_file = opts.output_file.c_str();
@@ -293,6 +294,9 @@ void render_to_file( Options opts, fs::path original_path )
 	AbstractNode *absolute_root_node;
 	absolute_root_node = root_module->evaluate(&root_ctx, &root_inst);
 	tree.setRoot(absolute_root_node);
+
+#include <iostream>
+	std::cout << "preview mode" << opts.preview_mode << "\n";
 
 #ifdef ENABLE_CGAL
 	if (csg_output_file) {

@@ -29,6 +29,8 @@
 #include "polyset.h"
 #include "csgterm.h"
 #include "stl-utils.h"
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/split.hpp>
 
 #ifdef ENABLE_OPENCSG
 #include <sstream>
@@ -60,9 +62,19 @@ OpenCSG_GLInfo enable_opencsg_shaders()
 	}
 
 	// All OpenGL 2 contexts are OpenCSG capable
-	if (GLEW_VERSION_2_0) {
+	// Unfortunately GLEW_VERSION_2_0 is not a reliable way to detect GL Version.
+	std::string gl_version = std::string( (const char *)glGetString(GL_VERSION) );
+	std::vector< std::string> tmp;
+	boost::split( tmp, gl_version, boost::is_any_of(". -|[]\\/") );
+	int ver_major, ver_minor;
+	ver_major = atoi( tmp[0].c_str() );
+	ver_minor = atoi( tmp[1].c_str() );
+
+#include <iostream>
+	if ( ver_major >= 2 ) {
 		PRINT("GL 2.0");
 		if (!openscad_disable_gl20_env) {
+			PRINT("capable");
 			si.is_opencsg_capable = true;
 			si.has_shaders = true;
 		}
