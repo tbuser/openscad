@@ -94,14 +94,17 @@ int main(int argc, char **argv)
 	ModuleInstantiation root_inst;
 	AbstractNode *root_node;
 
-	root_module = parsefile(filename);
-	if (!root_module) {
-		exit(1);
-	}
+        fs::path abspath = boosty::absolute(filename);
+        string parentpath = "";
+        if (abspath.has_parent_path()) {
+                parentpath = boosty::stringy(abspath.parent_path());
+        }
 
-	if (fs::path(filename).has_parent_path()) {
-		fs::current_path(fs::path(filename).parent_path());
-	}
+        root_module = parsefile(filename, parentpath, commandline_commands);
+        if (!root_module) {
+                exit(1);
+        }
+        fs::current_path( parentpath );
 
 	AbstractNode::resetIndexCounter();
 	root_node = root_module->evaluate(&root_ctx, &root_inst);
@@ -125,7 +128,13 @@ int main(int argc, char **argv)
 	delete root_node;
 	delete root_module;
 
-	root_module = parsefile(outfilename);
+        fs::path out_abspath = boosty::absolute(outfilename);
+        string out_parentpath = "";
+        if (out_abspath.has_parent_path()) {
+                out_parentpath = boosty::stringy(out_abspath.parent_path());
+        }
+
+        root_module = parsefile(outfilename, out_parentpath, commandline_commands);
 	if (!root_module) {
 		fprintf(stderr, "Error: Unable to read back dumped file\n");
 		exit(1);

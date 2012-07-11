@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 	AbstractModule *root_module;
 	ModuleInstantiation root_inst;
 
-	root_module = parsefile(filename);
+	root_module = parsefile(filename, "", commandline_commands);
 	if (!root_module) {
 		exit(1);
 	}

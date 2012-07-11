@@ -136,13 +136,15 @@ int main(int argc, char **argv)
 	AbstractModule *root_module;
 	ModuleInstantiation root_inst;
 
-	root_module = parsefile(filename);
-	if (!root_module) {
-		exit(1);
+	fs::path parentpath("");
+	if (fs::path(filename).has_parent_path()) {
+		parentpath = fs::path(filename).parent_path();
+		fs::current_path( parentpath );
 	}
 
-	if (fs::path(filename).has_parent_path()) {
-		fs::current_path(fs::path(filename).parent_path());
+	root_module = parsefile(filename, boosty::stringy( parentpath ), commandline_commands );
+	if (!root_module) {
+		exit(1);
 	}
 
 	AbstractNode::resetIndexCounter();

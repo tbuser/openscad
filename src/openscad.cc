@@ -235,22 +235,6 @@ int start_qt_gui( Options opts, int argc, char ** argv, fs::path original_path )
 	return app.exec();
 }
 
-Module *parsefile( std::string filename, std::parentpath )
-{
-	handle_dep( filename );
-	std::ifstream ifs(opts.input_file.c_str());
-	AbstractModuel *result = NULL;
-	if (!ifs.is_open()) {
-		fprintf(stderr, "Can't open input file '%s'!\n", opts.input_file.c_str());
-	} else {
-		string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
-		text += "\n" + commandline_commands;
-		result = parse(text.c_str(), parentpath.c_str(), false);
-	}
-	if (result) result->handleDependencies();
-	return result
-}
-
 void render_to_file( Options opts, fs::path original_path )
 {
 	Context root_ctx;
@@ -284,14 +268,15 @@ void render_to_file( Options opts, fs::path original_path )
 	}
 
 	fs::path abspath = boosty::absolute(opts.input_file);
-	string parentpath = boosty::stringy(abspath.parent_path());
+	string parentpath = "";
+	if (abspath.has_parent_path()) {
+		parentpath = boosty::stringy(abspath.parent_path());
+	}
 
-	AbstractModule *root_module = parsefile( opts.input_file, parentpath );
+	AbstractModule *root_module = parsefile( opts.input_file, parentpath, commandline_commands );
 	ModuleInstantiation root_inst;
 	if (!root_module) exit(1);
-
-	if (abspath.has_parent_path())
-		fs::current_path( abspath.parent_path(b) );
+	fs::current_path( parentpath );
 
 	AbstractNode::resetIndexCounter();
 	AbstractNode *absolute_root_node = root_module->evaluate(&root_ctx, &root_inst);
@@ -308,7 +293,9 @@ void render_to_file( Options opts, fs::path original_path )
 			PRINTB("Can't open file \"%s\" for export", csg_output_file);
 		}
 		else {
-			fs::current_path(fparent); // Force exported filenames to be relative to document path
+			// Force exported filenames to be relative to document path
+			if (abspath.has_parent_path())
+				fs::current_path( abspath.parent_path() );
 			fstream << tree.getString(*absolute_root_node) << "\n";
 			fstream.close();
 		}
@@ -456,7 +443,7 @@ int main(int argc, char **argv)
 	examplesdir = find_examples( exec_dir );
 
 	parser_init( boosty::stringy( exec_dir ) );
-	add_librarydir( exec_dir / "../libraries" );
+	add_librarydir( boosty::stringy( exec_dir / "../libraries") );
 
 	if (opts.output_file!="") {
 		if (opts.input_file=="") help(argv[0]);

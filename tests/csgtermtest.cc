@@ -84,14 +84,17 @@ int main(int argc, char **argv)
 	ModuleInstantiation root_inst;
 	const AbstractNode *root_node;
 
-	root_module = parsefile(filename);
-	if (!root_module) {
-		exit(1);
-	}
+        fs::path abspath = boosty::absolute(filename);
+        string parentpath = "";
+        if (abspath.has_parent_path()) {
+                parentpath = boosty::stringy(abspath.parent_path());
+        }
 
-	if (fs::path(filename).has_parent_path()) {
-		fs::current_path(fs::path(filename).parent_path());
-	}
+        root_module = parsefile(filename, parentpath, commandline_commands);
+        if (!root_module) {
+                exit(1);
+        }
+        fs::current_path( parentpath );
 
 	AbstractNode::resetIndexCounter();
 	root_node = root_module->evaluate(&root_ctx, &root_inst);

@@ -256,19 +256,24 @@ int csgtestcore(int argc, char *argv[], test_type_e test_type)
 	AbstractModule *root_module;
 	ModuleInstantiation root_inst;
 
+        fs::path abspath = boosty::absolute(filename);
+        string parentpath = "";
+        if (abspath.has_parent_path()) {
+                parentpath = boosty::stringy(abspath.parent_path());
+        }
+
+
 	if (sysinfo_dump)
 		root_module = parse("sphere();","",false);
 	else
-		root_module = parsefile(filename);
+	        root_module = parsefile(filename, parentpath, commandline_commands);
 
-	if (!root_module) {
-		exit(1);
-	}
+        if (!root_module) {
+                exit(1);
+        }
 
 	if (!sysinfo_dump) {
-		if (fs::path(filename).has_parent_path()) {
-			fs::current_path(fs::path(filename).parent_path());
-		}
+	        fs::current_path( parentpath );
 	}
 
 	AbstractNode::resetIndexCounter();

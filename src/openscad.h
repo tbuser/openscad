@@ -30,7 +30,7 @@
 #include <string>
 
 extern class Module *parse(const char *text, const char *path, int debug);
-extern class Module *parsefile( std::string filename, std::parentpath );
+extern class Module *parsefile( std::string filename, std::string parentpath );
 extern int get_fragments_from_r(double r, double fn, double fs, double fa);
 
 extern std::string commandline_commands;

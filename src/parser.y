@@ -40,11 +40,13 @@
 #include "function.h"
 #include "printutils.h"
 #include <sstream>
+#include <fstream>
 #include <boost/foreach.hpp>
 #include <boost/filesystem.hpp>
 
 namespace fs = boost::filesystem;
 #include "boosty.h"
+#include "handle_dep.h"
 
 int parser_error_pos = -1;
 
@@ -590,3 +592,21 @@ Module *parse(const char *text, const char *path, int debug)
 	parser_error_pos = -1;
 	return rootmodule;
 }
+
+
+Module *parsefile( std::string filename, std::string parentpath, std::string cmdline_commands )
+{
+	handle_dep( filename );
+        std::ifstream ifs( filename.c_str() );
+	Module *result = NULL;
+	if (!ifs.is_open()) {
+		PRINTB( "Can't open input file '%s'!\n", filename.c_str());
+	} else {	
+		std::string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		text += "\n" + cmdline_commands;
+		result = parse(text.c_str(), parentpath.c_str(), false);
+	}
+	if (result) result->handleDependencies();
+	return result;
+}
+
