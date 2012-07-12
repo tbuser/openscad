@@ -2,7 +2,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/foreach.hpp>
 #include "boosty.h"
-#include <qglobal.h> // Needed for Q_ defines - move the offending code somewhere else
+#include <fstream>
+#include "handle_dep.h"
 
 namespace fs = boost::filesystem;
 
@@ -33,10 +34,10 @@ void parser_init(const std::string &applicationpath)
 	std::string librarydir;
 	fs::path libdir(applicationpath);
 	fs::path tmpdir;
-#ifdef Q_WS_MAC
+#ifdef __APPLE__
 	libdir /= "../Resources"; // Libraries can be bundled
 	if (!is_directory(libdir / "libraries")) libdir /= "../../..";
-#elif defined(Q_OS_UNIX)
+#elif not defined(_WIN32)
 	if (is_directory(tmpdir = libdir / "../share/openscad/libraries")) {
 		librarydir = boosty::stringy( tmpdir );
 	} else if (is_directory(tmpdir = libdir / "../../share/openscad/libraries")) {
@@ -50,3 +51,22 @@ void parser_init(const std::string &applicationpath)
 		}
 	if (!librarydir.empty()) add_librarydir(librarydir);
 }
+
+
+Module *parsefile( std::string filename, std::string parentpath, std::string cmdline_commands )
+{
+	handle_dep( filename );
+        std::ifstream ifs( filename.c_str() );
+	Module *result = NULL;
+	if (!ifs.is_open()) {
+		PRINTB( "Can't open input file '%s'!\n", filename.c_str());
+	} else {
+		std::string text((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+		text += "\n" + cmdline_commands;
+		result = parse(text.c_str(), parentpath.c_str(), false);
+	}
+	if (result) result->handleDependencies();
+	return result;
+}
+
+
