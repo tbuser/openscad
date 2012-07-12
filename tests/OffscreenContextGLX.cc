@@ -243,7 +243,13 @@ Bool create_glx_dummy_context(OffscreenContext &ctx)
 
   glXQueryVersion(ctx.xdisplay, &major, &minor);
 
-  if ( major==1 && minor<=2 && glXGetVisualFromFBConfig==NULL ) {
+#ifdef glXGetVisualFromFBConfig
+  bool glXGetVisualFromFBConfig_exists = true;
+#else
+  bool glXGetVisualFromFBConfig_exists = false;
+#endif
+
+  if ( major==1 && minor<=2 && !glXGetVisualFromFBConfig_exists ) {
     cerr << "Error: GLX version 1.3 functions missing. "
         << "Your GLX version: " << major << "." << minor << endl;
   } else {
