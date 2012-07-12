@@ -10,5 +10,6 @@ void parser_init(const std::string &applicationpath);
 void add_librarydir(const std::string &libdir);
 std::string locate_file(const std::string &filename);
 Module *parsefile( std::string filename, std::string parentpath,std::string cmdline_commands );
+Module *parse(const char *text, const char *path, int debug);
 
 #endif

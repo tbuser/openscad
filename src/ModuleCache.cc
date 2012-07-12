@@ -1,7 +1,7 @@
 #include "ModuleCache.h"
 #include "module.h"
 #include "printutils.h"
-#include "openscad.h"
+#include "parsersettings.h"
 
 #include "boosty.h"
 #include <boost/format.hpp>
