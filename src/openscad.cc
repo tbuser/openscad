@@ -68,6 +68,8 @@
 namespace po = boost::program_options;
 namespace fs = boost::filesystem;
 
+extern int restart_under_virtual_x_server( int, char **, int, int, int );
+
 static void help(const char *progname)
 {
 	fprintf(stderr, "Usage: %s [ -o output_file [ -d deps_file ] ] [ --preview ] \\\n"
@@ -75,6 +77,27 @@ static void help(const char *progname)
 					progname, int(strlen(progname))+8, "");
 	exit(1);
 }
+
+void viewpoint_help( const char *progname ){
+	std::cerr << "Viewpoint needs 4 arguments. X rotation, Y rotation,\n"
+		<< "Z rotation, and distance. For example: \n"
+		<< "\n"
+		<< progname << " --viewpoint=20,20,30,50"
+		<< "\n"
+		<< "Please try again\n";
+	exit(1);
+}
+
+void imgsize_help( const char *progname )
+{
+	std::cerr << "imgsize needs 2 arguments: width and height. For example: \n"
+		<< "\n"
+		<< progname << " --imgsize=800,600"
+		<< "\n"
+		<< "Please try again\n";
+	exit(1);
+}
+
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -96,14 +119,18 @@ class Options
 public:
 	Options();
 	string input_file, output_file, deps_output_file;
-	bool useGUI, preview_mode;
+	bool useGUI, preview_mode, useVirtualX;
+	float vp_xrot, vp_yrot, vp_zrot, vp_dist;
+	int imgwidth, imgheight;
 	po::variables_map vm;
 };
 
 Options::Options()
 {
 	input_file = output_file = deps_output_file = "";
-	useGUI = preview_mode = false;
+	useGUI = preview_mode = useVirtualX = false;
+	vp_xrot = 30.0; vp_yrot = 20.0; vp_zrot = 20.0; vp_dist = 50.0;
+	imgwidth = 800; imgheight = 600;
 }
 
 Options parse_options( int argc, char **argv )
@@ -113,18 +140,22 @@ Options parse_options( int argc, char **argv )
 	desc.add_options()
 		("help,h", "help message")
 		("version,v", "print the version")
-		("preview", "use preview renderer when creating images")
-		("offsinfo", "print information about offscreen rendering")
 		("o,o", po::value<string>(), "out-file")
 		("s,s", po::value<string>(), "stl-file")
 		("x,x", po::value<string>(), "dxf-file")
 		("d,d", po::value<string>(), "deps-file")
 		("m,m", po::value<string>(), "makefile")
-		("D,D", po::value<vector<string> >(), "var=val");
+		("D,D", po::value<vector<string> >(), "var=val")
+		// image rendering options
+		("preview", "use preview renderer when creating images")
+		("offsinfo", "print information about offscreen rendering")
+		("viewpoint,p", po::value<vector<float> >(), "viewpoint=RotX,RotY,RotZ,Distance")
+		("imgsize", po::value<vector<int> >(), "width & height of render image. imgsize=800,600");
 
 	po::options_description hidden("Hidden options");
 	hidden.add_options()
-		("input-file", po::value< vector<string> >(), "input file");
+		("input-file", po::value< vector<string> >(), "input file")
+		("virtualx-started", "prevent infinite recursion of virtual X server");
 
 	po::positional_options_description p;
 	p.add("input-file", -1);
@@ -183,6 +214,43 @@ Options parse_options( int argc, char **argv )
 			commandline_commands += ";\n";
 		}
 	}
+
+	if (opts.vm.count("p")) {
+		const vector<float> vp = opts.vm["p"].as<vector<float> >();
+		if (vp.size()!=4) viewpoint_help( argv[0] );
+		opts.vp_xrot = vp[0];
+		opts.vp_yrot = vp[1];
+		opts.vp_zrot = vp[2];
+		opts.vp_dist = vp[3];
+	}
+
+	if (opts.vm.count("imgsize")) {
+		const vector<int> is = opts.vm["imgsize"].as<vector<int> >();
+		if (is.size()!=2) imgsize_help( argv[0] );
+		opts.imgwidth = is[0];
+		opts.imgheight = is[1];
+	}
+
+#ifdef Q_WS_X11
+	// see <http://qt.nokia.com/doc/4.5/qapplication.html#QApplication-2>:
+	// On X11, the window system is initialized if GUIenabled is true. If GUIenabled
+	// is false, the application does not connect to the X server. On Windows and
+	// Macintosh, currently the window system is always initialized, regardless of the
+	// value of GUIenabled. This may change in future versions of Qt.
+	opts.useGUI = getenv("DISPLAY") != 0;
+
+	// If we are rendering an image to a file, and there is no X11 present,
+	// attempt to start a Virtual X Server and use it.
+	fs::path outpath(opts.output_file);
+	string suffix = boosty::stringy( outpath.extension() );
+	boost::algorithm::to_lower( suffix );
+	if ( opts.useGUI == false )
+		if ( suffix == ".png" )
+			if ( !opts.vm.count("virtualx-started") )
+				opts.useVirtualX = true;
+#else
+	opts.useGUI = true;
+#endif
 
 	return opts;
 }
@@ -404,33 +472,26 @@ string find_examples( fs::path exdir )
 }
 
 
+
 int main(int argc, char **argv)
 {
 	fs::path original_path = fs::current_path();
 	int rc = 0;
 	Options opts = parse_options( argc, argv );
+
 #ifndef ENABLE_MDI
 	if (opts.vm.count("input-file") > 1) {
 		help(argv[0]);
 	}
 #endif
 
+	if (opts.useVirtualX)
+		restart_under_virtual_x_server( argc, argv, opts.imgwidth, opts.imgheight, 24 );
 
 #ifdef ENABLE_CGAL
 	// Causes CGAL errors to abort directly instead of throwing exceptions
 	// (which we don't catch). This gives us stack traces without rerunning in gdb.
 	CGAL::set_error_behaviour(CGAL::ABORT);
-#endif
-
-#ifdef Q_WS_X11
-	// see <http://qt.nokia.com/doc/4.5/qapplication.html#QApplication-2>:
-	// On X11, the window system is initialized if GUIenabled is true. If GUIenabled
-	// is false, the application does not connect to the X server. On Windows and
-	// Macintosh, currently the window system is always initialized, regardless of the
-	// value of GUIenabled. This may change in future versions of Qt.
-	opts.useGUI = getenv("DISPLAY") != 0;
-#else
-	opts.useGUI = true;
 #endif
 
 	Builtins::instance()->initialize();

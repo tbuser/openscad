@@ -262,6 +262,7 @@ SOURCES += src/mathc99.cc \
            tests/imageutils.cc \
            tests/system-gl.cc \
            tests/bboxhelp.cc \
+           src/unix-without-x.cc \
            \
            src/builtin.cc \
            src/export.cc \
