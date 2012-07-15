@@ -99,8 +99,6 @@
 #define OPENCSG_VERSION_STRING "unknown, <1.3.2"
 #endif
 
-extern QString examplesdir;
-
 // Global application state
 unsigned int GuiLocker::gui_locked = 0;
 
