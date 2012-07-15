@@ -24,6 +24,22 @@ printUsage()
   echo
 }
 
+build_git()
+{
+  version=$1
+  echo "Building git" $version "..."
+  cd $BASEDIR/src
+  rm -rf git-$version
+  if [ ! -f git-$version.tar.gz ]; then
+    curl -O http://git-core.googlecode.com/files/git-$version.tar.gz
+  fi
+  tar zxf git-$version.tar.gz
+  cd git-$version
+  ./configure --prefix=$DEPLOYDIR
+  make -j$NUMCPU
+  make install
+}
+
 build_cmake()
 {
   version=$1
@@ -171,8 +187,8 @@ build_opencsg()
 
   qmake-qt4
   make
-  install -v lib/* $DEPLOYDIR/lib
-  install -v include/* $DEPLOYDIR/include
+  cp -av lib/* $DEPLOYDIR/lib
+  cp -av include/* $DEPLOYDIR/include
 }
 
 build_eigen()
@@ -196,9 +212,19 @@ build_eigen()
   make install
 }
 
+
+OPENSCADDIR=$PWD
 if [ ! -f $OPENSCADDIR/openscad.pro ]; then
   echo "Must be run from the OpenSCAD source root directory"
   exit 0
+fi
+
+. ./scripts/setenv-linbuild.sh # '.' is equivalent to 'source'
+SRCDIR=$BASEDIR/src
+
+if [ ! $NUMCPU ]; then
+	echo "Note: The NUMCPU environment variable can be set for paralell builds"
+	NUMCPU=1
 fi
 
 if [ ! -d $BASEDIR/bin ]; then
@@ -211,13 +237,6 @@ echo "Using srcdir:" $SRCDIR
 echo "Number of CPUs for parallel builds:" $NUMCPU
 mkdir -p $SRCDIR $DEPLOYDIR
 
-export PATH=$BASEDIR/bin:$PATH
-export LD_LIBRARY_PATH=$DEPLOYDIR/lib:$DEPLOYDIR/lib64:$LD_LIBRARY_PATH
-export LD_RUN_PATH=$DEPLOYDIR/lib:$DEPLOYDIR/lib64:$LD_RUN_PATH
-echo "PATH modified temporarily"
-echo "LD_LIBRARY_PATH modified temporarily"
-echo "LD_RUN_PATH modified temporarily"
-
 if [ ! "`command -v curl`" ]; then
 	build_curl 7.26.0
 fi
@@ -226,6 +245,11 @@ fi
 if [ ! "`command -v cmake`" ]; then
 	build_cmake 2.8.8
 fi
+if [ "`cmake --version | grep 'version 2.[1-6][^0-9]'`" ]; then
+	build_cmake 2.8.8
+fi
+
+# build_git 1.7.10.3
 
 build_eigen 2.0.17
 build_gmp 5.0.5

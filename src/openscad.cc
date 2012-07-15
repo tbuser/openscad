@@ -257,7 +257,6 @@ Options parse_options( int argc, char **argv )
 
 
 
-
 int start_qt_gui( Options opts, int argc, char ** argv, fs::path original_path )
 {
 	QApplication app(argc, argv, opts.useGUI);

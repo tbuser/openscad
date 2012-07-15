@@ -34,3 +34,10 @@ if [ "`uname -a | grep ppc`" ]; then
 	echo "GALLIUM_DRIVER modified"
 	echo "DRAW_USE_LLVM modified"
 fi
+
+if [ "`command -v qmake-qt4`" ]; then
+	echo "Please re-run qmake-qt4 and run 'make clean' if necessary"
+else
+	echo "Please re-run qmake and run 'make clean' if necessary"
+fi
+

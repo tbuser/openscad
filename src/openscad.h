@@ -36,7 +36,10 @@ extern std::string commandline_commands;
 // The CWD when application started. We shouldn't change CWD, but until we stop
 // doing this, use currentdir to get the original CWD.
 extern std::string currentdir;
+<<<<<<< HEAD
 extern std::string examplesdir;
+=======
+>>>>>>> 8cc442369fa95b61b2a475f7cd1d63f3ab7ca713
 
 #endif
 
