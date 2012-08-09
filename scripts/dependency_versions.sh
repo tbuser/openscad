@@ -2,9 +2,8 @@
 # called by various scripts to set versions of libraries & tools to build/use
 #
 # Notes:
-#  - QT is not included
 #  - MingW/MXE cross builds use their own versions, usually very new.
-#  - It doesn't check G++ version, bison version, or flex version
+#  - It doesn't do QT version, G++ version, bison version, or flex version
 #  - If you add a new version of CGAL, you must update the URL in the scripts
 #
 
@@ -15,7 +14,7 @@
 #
 
 # libraries
-CGAL_VERSION=4.0.2 # note - CGAL must also have url updated in all scripts
+CGAL_VERSION=4.0.2 # note - new CGAL must also have url updated in all scripts
 OPENCSG_VERSION=1.3.2
 EIGEN_VERSION=2.0.17
 GMP_VERSION=5.0.5

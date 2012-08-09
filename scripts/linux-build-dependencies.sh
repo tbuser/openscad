@@ -136,20 +136,23 @@ build_cgal()
   cd $BASEDIR/src
   rm -rf CGAL-$version
   if [ ! -f CGAL-$version.tar.gz ]; then
-    #4.0.2
-    curl -O https://gforge.inria.fr/frs/download.php/31174/CGAL-$version.tar.bz2
-    # 4.0 curl -O https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.gz
-    # 3.9 curl -O https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.gz
-    # 3.8 curl -O https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.gz
-    # 3.7 curl -O https://gforge.inria.fr/frs/download.php/27641/CGAL-$version.tar.gz
+    if [ $version = "4.0.2" ]; then
+      curl -O https://gforge.inria.fr/frs/download.php/31174/CGAL-$version.tar.gz
+    elif [ $version = "4.0" ]; then
+      curl -O https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.gz
+    elif [ $version = "3.9" ]; then
+      curl -O https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.gz
+    elif [ $version = "3.8" ]; then
+      curl -O https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.gz
+    elif [ $version = "3.7" ]; then
+      curl -O https://gforge.inria.fr/frs/download.php/27641/CGAL-$version.tar.gz
+    elif [ $version = "3.6" ]; then
+      curl -O https://gforge.inria.fr/frs/download.php/26688/CGAL-$version.tar.gz
+    fi
   fi
-  tar jxf CGAL-$version.tar.bz2
+  tar xf CGAL-$version.tar.gz
   cd CGAL-$version
-  if [ $2 = use-sys-libs ]; then
-    cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DCMAKE_BUILD_TYPE=Debug
-  else
-    cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DGMP_INCLUDE_DIR=$DEPLOYDIR/include -DGMP_LIBRARIES=$DEPLOYDIR/lib/libgmp.so -DGMPXX_LIBRARIES=$DEPLOYDIR/lib/libgmpxx.so -DGMPXX_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_LIBRARIES=$DEPLOYDIR/lib/libmpfr.so -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DBOOST_ROOT=$DEPLOYDIR -DCMAKE_BUILD_TYPE=Debug
-  fi
+  cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DGMP_INCLUDE_DIR=$DEPLOYDIR/include -DGMP_LIBRARIES=$DEPLOYDIR/lib/libgmp.so -DGMPXX_LIBRARIES=$DEPLOYDIR/lib/libgmpxx.so -DGMPXX_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_LIBRARIES=$DEPLOYDIR/lib/libmpfr.so -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DBOOST_ROOT=$DEPLOYDIR -DCMAKE_BUILD_TYPE=Debug
   make -j$NUMCPU
   make install
 }
@@ -240,16 +243,17 @@ build_eigen()
   version=$1
   echo "Building eigen" $version "..."
   cd $BASEDIR/src
-  rm -rf eigen-$version
-  ## Directory name for v2.0.17
-  rm -rf eigen-eigen-b23437e61a07
+  rm -rf ./eigen-$version
+  rm -rf ./eigen-eigen-*
   if [ ! -f eigen-$version.tar.bz2 ]; then
     curl -LO http://bitbucket.org/eigen/eigen/get/$version.tar.bz2
     mv $version.tar.bz2 eigen-$version.tar.bz2
   fi
   tar xjf eigen-$version.tar.bz2
-  ## File name for v2.0.17
-  ln -s eigen-eigen-b23437e61a07 eigen-$version
+  # attempt to portably link a path you dont know exact name of (should only do 1 loop)
+  for i in eigen-eigen-*; do
+    ln -s $i eigen-$version
+  done
   cd eigen-$version
   cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR
   make -j$NUMCPU
