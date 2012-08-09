@@ -281,47 +281,34 @@ echo "Using srcdir:" $SRCDIR
 echo "Number of CPUs for parallel builds:" $NUMCPU
 mkdir -p $SRCDIR $DEPLOYDIR
 
+# Load version numbers to build
+. ./scripts/dependency_versions.sh
+
 if [ ! "`command -v curl`" ]; then
-	build_curl 7.26.0
+	build_curl $CURL_VERSION
 fi
 
 # NB! For cmake, also update the actual download URL in the function
 if [ ! "`command -v cmake`" ]; then
-	build_cmake 2.8.8
+	build_cmake $CMAKE_VERSION
 fi
 if [ "`cmake --version | grep 'version 2.[1-6][^0-9]'`" ]; then
-	build_cmake 2.8.8
+	build_cmake $CMAKE_VERSION
 fi
 
-# build_git 1.7.10.3
-
-# Singly build CGAL or OpenCSG
-# (Most systems have all libraries available as packages except CGAL/OpenCSG)
-# (They can be built singly here by passing a command line arg to the script)
-if [ $1 ]; then
-  if [ $1 = "cgal-use-sys-libs" ]; then
-    build_cgal 4.0.2 use-sys-libs
-    exit
-  fi
-  if [ $1 = "opencsg" ]; then
-    build_opencsg 1.3.2
-    exit
-  fi
-fi
-
+# build_git $GIT_VERSION
 
 #
 # Main build of libraries
-# edit version numbers here as needed.
 #
 
-build_eigen 2.0.17
-build_gmp 5.0.5
-build_mpfr 3.1.1
-build_boost 1.47.0
+build_eigen $EIGEN_VERSION
+build_gmp $GMP_VERSION
+build_mpfr $MPFR_VERSION
+build_boost $BOOST_VERSION
 # NB! For CGAL, also update the actual download URL in the function
-build_cgal 4.0.2
-build_glew 1.7.0
-build_opencsg 1.3.2
+build_cgal $CGAL_VERSION
+build_glew $GLEW_VERSION
+build_opencsg $OPENCSG_VERSION
 
 echo "OpenSCAD dependencies built and installed to " $BASEDIR
