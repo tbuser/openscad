@@ -35,14 +35,16 @@ GIT_VERSION=1.7.10.3
 # Good for running the test suite against versions included in Distros
 #
 
-if [ $OPENSCAD_DEP_VERSIONS = "custom" ]; then
-	CGAL_VERSION=3.8
-	OPENCSG_VERSION=1.3.2
-	EIGEN_VERSION=2.0.17
-	GMP_VERSION=5.0.5
-	MPFR_VERSION=3.1.1
-	BOOST_VERSION=1.47.0
-	GLEW_VERSION=1.6.0
+if [ $OPENSCAD_DEP_VERSIONS ]; then
+  if [ $OPENSCAD_DEP_VERSIONS = "custom" ]; then
+  	CGAL_VERSION=3.8
+  	OPENCSG_VERSION=1.3.2
+  	EIGEN_VERSION=2.0.17
+  	GMP_VERSION=5.0.5
+  	MPFR_VERSION=3.1.1
+  	BOOST_VERSION=1.47.0
+  	GLEW_VERSION=1.6.0
+  fi
 fi
 
 
@@ -52,13 +54,15 @@ fi
 # This should match the 'minimum' listed in the README.md
 #
 
-if [ $OPENSCAD_DEP_VERSIONS = "lowest" ]; then
-	CGAL_VERSION=3.6
-	OPENCSG_VERSION=1.3.1
-	EIGEN_VERSION=2.0.13
-	GMP_VERSION=5.0.0
-	MPFR_VERSION=3.0.0
-	BOOST_VERSION=1.35.0
-	GLEW_VERSION=1.6.0
+if [ $OPENSCAD_DEP_VERSIONS ]; then
+  if [ $OPENSCAD_DEP_VERSIONS = "lowest" ]; then
+	  CGAL_VERSION=3.6
+	  OPENCSG_VERSION=1.3.1
+	  EIGEN_VERSION=2.0.13
+	  GMP_VERSION=5.0.0
+	  MPFR_VERSION=3.0.0
+	  BOOST_VERSION=1.35.0
+	  GLEW_VERSION=1.6.0
+  fi
 fi
 

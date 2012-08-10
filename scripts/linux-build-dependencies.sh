@@ -73,6 +73,9 @@ build_gmp()
 {
   version=$1
   echo "Building gmp" $version "..."
+  if [ "`ls $BASEDIR/installed | grep gmp`" ]; then
+    echo "already built"; return;
+  fi
   cd $BASEDIR/src
   rm -rf gmp-$version
   if [ ! -f gmp-$version.tar.bz2 ]; then
@@ -83,13 +86,17 @@ build_gmp()
   mkdir build
   cd build
   ../configure --prefix=$DEPLOYDIR --enable-cxx
-  make install
+  make -j$NUMCPU install
+  touch $BASEDIR/installed/gmp
 }
 
 build_mpfr()
 {
   version=$1
   echo "Building mpfr" $version "..."
+  if [ "`ls $BASEDIR/installed | grep mpfr`" ]; then
+    echo "already built"; return;
+  fi
   cd $BASEDIR/src
   rm -rf mpfr-$version
   if [ ! -f mpfr-$version.tar.bz2 ]; then
@@ -100,8 +107,9 @@ build_mpfr()
   mkdir build
   cd build
   ../configure --prefix=$DEPLOYDIR --with-gmp=$DEPLOYDIR
-  make install
+  make -j$NUMCPU install
   cd ..
+  touch $BASEDIR/installed/mpfr
 }
 
 build_boost_without_bootstrap()
@@ -139,6 +147,9 @@ build_boost()
   version=$1
   bversion=`echo $version | tr "." "_"`
   echo "Building boost" $version "..."
+  if [ "`ls $BASEDIR/installed | grep boost`" ]; then
+    echo "already built"; return;
+  fi
   cd $BASEDIR/src
   rm -rf boost_$bversion
   if [ ! -f boost_$bversion.tar.bz2 ]; then
@@ -146,11 +157,14 @@ build_boost()
   fi
   tar xjf boost_$bversion.tar.bz2
   cd boost_$bversion
+  if [ ! $CC ]; then
+    CC=gcc
+  fi
   case $version in
     1.3[5-6].*)
-      if [ "`gcc --verbose 2>&1 | grep 'version 4.4' `" ]; then
+      if [ "`$CC --verbose 2>&1 | grep 'gcc version 4.4' `" ]; then
         # https://svn.boost.org/trac/boost/ticket/2069
-        echo boost version $version not compatible with `gcc --verbose 2>&1 | grep 'version 4.4' `
+        echo boost version $version not compatible with `$CC --verbose 2>&1 | grep 'gcc version 4.4' `
         echo please use a newer version of boost or gcc
         exit 1
       else
@@ -164,12 +178,16 @@ build_boost()
       build_boost_with_bootstrap
       ;;
   esac
+  touch $BASEDIR/installed/boost
 }
 
 build_cgal()
 {
   version=$1
   echo "Building CGAL" $version "..."
+  if [ "`ls $BASEDIR/installed | grep cgal`" ]; then
+    echo "already built"; return;
+  fi
   cd $BASEDIR/src
   rm -rf CGAL-$version
   if [ ! -f CGAL-$version.tar.gz ]; then
@@ -192,12 +210,16 @@ build_cgal()
   cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DGMP_INCLUDE_DIR=$DEPLOYDIR/include -DGMP_LIBRARIES=$DEPLOYDIR/lib/libgmp.so -DGMPXX_LIBRARIES=$DEPLOYDIR/lib/libgmpxx.so -DGMPXX_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_LIBRARIES=$DEPLOYDIR/lib/libmpfr.so -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DBOOST_ROOT=$DEPLOYDIR -DCMAKE_BUILD_TYPE=Debug
   make -j$NUMCPU
   make install
+  touch $BASEDIR/installed/cgal
 }
 
 build_glew()
 {
   version=$1
   echo "Building GLEW" $version "..."
+  if [ "`ls $BASEDIR/installed | grep glew`" ]; then
+    echo "already built"; return;
+  fi
   cd $BASEDIR/src
   rm -rf glew-$version
   if [ ! -f glew-$version.tgz ]; then
@@ -224,12 +246,16 @@ build_glew()
 
 	GLEW_DEST=$DEPLOYDIR make -j$NUMCPU
   GLEW_DEST=$DEPLOYDIR make install
+  touch $BASEDIR/installed/glew
 }
 
 build_opencsg()
 {
   version=$1
   echo "Building OpenCSG" $version "..."
+  if [ "`ls $BASEDIR/installed | grep opencsg`" ]; then
+    echo "already built"; return;
+  fi
   cd $BASEDIR/src
   rm -rf OpenCSG-$version
   if [ ! -f OpenCSG-$version.tar.gz ]; then
@@ -273,12 +299,16 @@ build_opencsg()
   cp -av lib/* $DEPLOYDIR/lib
   cp -av include/* $DEPLOYDIR/include
   cd $OPENSCADDIR
+  touch $BASEDIR/installed/opencsg
 }
 
 build_eigen()
 {
   version=$1
   echo "Building eigen" $version "..."
+  if [ "`ls $BASEDIR/installed | grep eigen`" ]; then
+    echo "already built"; return;
+  fi
   cd $BASEDIR/src
   rm -rf ./eigen-$version
   rm -rf ./eigen-eigen-*
@@ -295,6 +325,7 @@ build_eigen()
   cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR
   make -j$NUMCPU
   make install
+  touch $BASEDIR/installed/eigen
 }
 
 
@@ -314,6 +345,11 @@ BASEDIR=$BASEDIR
 . ./scripts/dependency-versions.sh
 
 SRCDIR=$BASEDIR/src
+
+# the directory 'installed' holds a list of built + installed deps
+if [ ! -e $BASEDIR/installed ]; then
+  mkdir -p $BASEDIR/installed
+fi
 
 if [ ! $NUMCPU ]; then
 	echo "Note: The NUMCPU environment variable can be set for paralell builds"
