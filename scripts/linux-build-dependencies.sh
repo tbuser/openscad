@@ -151,7 +151,7 @@ build_boost()
       if [ "`gcc --verbose 2>&1 | grep 'version 4.4' `" ]; then
         # https://svn.boost.org/trac/boost/ticket/2069
         echo boost version $version not compatible with `gcc --verbose 2>&1 | grep 'version 4.4' `
-        echo please use a newer version of boost
+        echo please use a newer version of boost or gcc
         exit 1
       else
         build_boost_without_bootstrap
@@ -304,7 +304,15 @@ if [ ! -f $OPENSCADDIR/openscad.pro ]; then
   exit 0
 fi
 
-. ./scripts/setenv-linbuild.sh # '.' is equivalent to 'source'
+# This sets other env. variables for the libraries & tools.
+# '.' is equivalent to 'source' for dash shell
+BASEDIR=$BASEDIR
+. ./scripts/setenv-linbuild.sh
+
+# This sets the version numbers of libraries & tools. Please edit the
+# file to change version numbers.
+. ./scripts/dependency-versions.sh
+
 SRCDIR=$BASEDIR/src
 
 if [ ! $NUMCPU ]; then
@@ -322,9 +330,6 @@ echo "Using srcdir:" $SRCDIR
 echo "Number of CPUs for parallel builds:" $NUMCPU
 mkdir -p $SRCDIR $DEPLOYDIR
 
-# This sets the version numbers of libraries&tools. Please edit the
-# file to change version numbers.
-. ./scripts/dependency_versions.sh
 
 if [ ! "`command -v curl`" ]; then
 	build_curl $CURL_VERSION
@@ -344,9 +349,9 @@ fi
 # Main build of libraries
 #
 
-#build_eigen $EIGEN_VERSION
-#build_gmp $GMP_VERSION
-#build_mpfr $MPFR_VERSION
+build_eigen $EIGEN_VERSION
+build_gmp $GMP_VERSION
+build_mpfr $MPFR_VERSION
 build_boost $BOOST_VERSION
 # NB! For CGAL, also update the actual download URL in the function
 build_cgal $CGAL_VERSION
