@@ -104,6 +104,36 @@ build_mpfr()
   cd ..
 }
 
+build_boost_without_bootstrap()
+{
+  # older versions of boost dont have it
+  ./configure --prefix=$DEPLOYDIR --with-libraries=thread,program_options,filesystem,system,regex
+  make -j$NUMCPU
+  make install
+  return
+}
+
+build_boost_with_bootstrap()
+{
+  # newer versions of boost have a 'bootstrap' script
+  # We only need certain portions of boost
+  ./bootstrap.sh --prefix=$DEPLOYDIR --with-libraries=thread,program_options,filesystem,system,regex
+  BJAM_EXEC=./bjam
+  if [ -e ./b2 ]; then
+    BJAM_EXEC=./b2
+  fi
+	if [ $CXX ]; then
+		if [ $CXX = "clang" ]; then
+		  $BJAM_EXEC -j$NUMCPU toolset=clang install
+		  # ./b2 -j$NUMCPU toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" install
+		fi
+	else
+	  $BJAM_EXEC -j$NUMCPU
+	  $BJAM_EXEC install
+	fi
+  return
+}
+
 build_boost()
 {
   version=$1
@@ -116,17 +146,24 @@ build_boost()
   fi
   tar xjf boost_$bversion.tar.bz2
   cd boost_$bversion
-  # We only need certain portions of boost
-  ./bootstrap.sh --prefix=$DEPLOYDIR --with-libraries=thread,program_options,filesystem,system,regex
-	if [ $CXX ]; then
-		if [ $CXX = "clang" ]; then
-		  ./b2 -j$NUMCPU toolset=clang install
-		  # ./b2 -j$NUMCPU toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" install
-		fi
-	else
-	  ./b2 -j$NUMCPU
-	  ./b2 install
-	fi
+  case $version in
+    1.3[5-6].*)
+      if [ "`gcc --verbose 2>&1 | grep 'version 4.4' `" ]; then
+        # https://svn.boost.org/trac/boost/ticket/2069
+        echo boost version $version not compatible with `gcc --verbose 2>&1 | grep 'version 4.4' `
+        echo please use a newer version of boost
+        exit 1
+      else
+        build_boost_without_bootstrap
+      fi
+      ;;
+    1.3[7-8].*)
+      build_boost_without_bootstrap
+      ;;
+    *)
+      build_boost_with_bootstrap
+      ;;
+  esac
 }
 
 build_cgal()
@@ -285,7 +322,8 @@ echo "Using srcdir:" $SRCDIR
 echo "Number of CPUs for parallel builds:" $NUMCPU
 mkdir -p $SRCDIR $DEPLOYDIR
 
-# Load version numbers to build
+# This sets the version numbers of libraries&tools. Please edit the
+# file to change version numbers.
 . ./scripts/dependency_versions.sh
 
 if [ ! "`command -v curl`" ]; then
@@ -306,9 +344,9 @@ fi
 # Main build of libraries
 #
 
-build_eigen $EIGEN_VERSION
-build_gmp $GMP_VERSION
-build_mpfr $MPFR_VERSION
+#build_eigen $EIGEN_VERSION
+#build_gmp $GMP_VERSION
+#build_mpfr $MPFR_VERSION
 build_boost $BOOST_VERSION
 # NB! For CGAL, also update the actual download URL in the function
 build_cgal $CGAL_VERSION
