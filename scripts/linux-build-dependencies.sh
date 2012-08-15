@@ -132,12 +132,11 @@ build_boost_with_bootstrap()
   fi
 	if [ $CXX ]; then
 		if [ $CXX = "clang" ]; then
-		  $BJAM_EXEC -j$NUMCPU toolset=clang install
+		  $BJAM_EXEC include=$DEPLOYDIR -j$NUMCPU toolset=clang -d+2 install
 		  # ./b2 -j$NUMCPU toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" install
 		fi
 	else
-	  $BJAM_EXEC -j$NUMCPU
-	  $BJAM_EXEC install
+	  $BJAM_EXEC include=$DEPLOYDIR -j$NUMCPU install -d+2
 	fi
   return
 }
