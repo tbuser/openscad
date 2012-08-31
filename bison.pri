@@ -17,7 +17,7 @@ win32 {
   QMAKE_EXTRA_COMPILERS += bison_header
 }
 
-unix:freebsd-g++ {
+unix:freebsd*|openbsd* {
   # on bsd /usr/bin/bison is outdated, dont use it
   QMAKE_YACC = /usr/local/bin/bison
 }

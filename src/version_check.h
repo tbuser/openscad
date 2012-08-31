@@ -80,7 +80,18 @@ a time, to avoid confusion.
 #include <opencsg.h>
 // 1.3.2 -> 0x0132
 #if OPENCSG_VERSION < 0x0132
-#error OPENCSG library missing or version too old. See README.md. To force compile, run qmake CONFIG=skip-version-check
+#warning "======================="
+#warning "."
+#warning "."
+#warning "."
+#warning "."
+#warning OPENCSG library version is old. Test framework may not run properly.
+#warning Bugs may manifest. Please see README.md. Continuing anyway.
+#warning "."
+#warning "."
+#warning "."
+#warning "."
+#warning "======================="
 #else
 #endif // ENABLE_OPENCSG
 

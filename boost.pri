@@ -53,7 +53,8 @@ boost {
       BMT_TEST1 = /usr/lib64/libboost*thread-mt*
       BMT_TEST2 = /usr/lib/libboost*thread-mt*
       BMT_TEST3 = /usr/pkg/lib/libboost*thread-mt* # netbsd
-      exists($$BMT_TEST1)|exists($$BMT_TEST2)|exists($$BMT_TEST3) {
+      BMT_TEST4 = /usr/local/lib/libboost*thread-mt* # openbsd
+      exists($$BMT_TEST1)|exists($$BMT_TEST2)|exists($$BMT_TEST3)|exists($$BMT_TEST4) {
         BOOST_LINK_FLAGS = -lboost_thread-mt -lboost_program_options-mt -lboost_filesystem-mt -lboost_system-mt -lboost_regex-mt
       }
     }

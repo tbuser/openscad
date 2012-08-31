@@ -297,6 +297,15 @@ if [ ! "`command -v curl`" ]; then
 	build_curl 7.26.0
 fi
 
+# Singly build OpenCSG. Most systems won't have it, so we make a special
+# case here to ease installation on those systems. 
+if [ $1 ]; then
+  if [ $1 = "opencsg" ]; then
+    build_opencsg 1.3.2
+    exit
+  fi
+fi
+
 # NB! For cmake, also update the actual download URL in the function
 if [ ! "`command -v cmake`" ]; then
 	build_cmake 2.8.8
@@ -307,16 +316,11 @@ fi
 
 # build_git 1.7.10.3
 
-# Singly build CGAL or OpenCSG
-# (Most systems have all libraries available as packages except CGAL/OpenCSG)
+# Singly build CGAL (Some systems lack an updated CGAL. This eases building)
 # (They can be built singly here by passing a command line arg to the script)
 if [ $1 ]; then
   if [ $1 = "cgal-use-sys-libs" ]; then
     build_cgal 4.0.2 use-sys-libs
-    exit
-  fi
-  if [ $1 = "opencsg" ]; then
-    build_opencsg 1.3.2
     exit
   fi
 fi

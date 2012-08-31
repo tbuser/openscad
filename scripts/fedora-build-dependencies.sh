@@ -1,18 +1,18 @@
+
+# RHEL does not contain CGAL, has very outdated GMP, etc. 
+if [ "`cat /etc/issue | grep -i 'Red hat Enterprise'`" ]; then
+	sudo yum install curl git qt-devel bison flex libXmu-devel \
+	 ImageMagick xorg-x11-server-Xvfb
+        echo "RHEL detected. Please try 'old linux' build (see README.md)"
+        exit
+fi
+
 echo "Tested on Fedora 17. If this fails try 'old linux' build (see README.md)"
 sleep 2
 
-# Fedora 17 has CGAL 4
-#if [ "`yum list installed | grep -i cgal`" ]; then
-#	echo "Please make sure you have removed all cgal packages and retry"
-#	exit
-#fi
-
-if [ "`yum list installed | grep -i opencsg`" ]; then
-	echo "Please make sure you have removed all opencsg packages and retry"
-	exit
-fi
-
-sudo yum install qt-devel bison flex eigen2-devel \
+sudo yum install curl cmake git qt-devel bison flex libXmu-devel ImageMagick \
+ xorg-x11-server-Xvfb \
+ eigen2-devel \
  boost-devel mpfr-devel gmp-devel glew-devel CGAL-devel gcc pkgconfig git
 
 #echo "now copy/paste the following to install CGAL and OpenCSG from source:"
