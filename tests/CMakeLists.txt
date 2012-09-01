@@ -97,6 +97,14 @@ if(CMAKE_CXX_COMPILER MATCHES ".*clang.*")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare")
 endif()
 
+set( OPENSCAD_LIBDIR "$ENV{OPENSCAD_LIBRARIES}")
+if( OPENSCAD_LIBDIR )
+  if(NOT EXISTS ${OPENSCAD_LIBDIR})
+    set(ENV{OPENSCAD_LIBRARIES} "")
+    message(STATUS "OPENSCAD_LIBRARIES: ${OPENSCAD_LIBDIR}")
+    message(STATUS "Ignoring OPENSCAD_LIBRARIES as the path does not exist")
+  endif()
+endif()
 #
 # Build test apps
 #
