@@ -5,18 +5,24 @@
 # and want to build or run openscad against custom libraries installed
 # into BASEDIR.
 
-# copy this file to your .bashrc if desired.
-
 if [ ! $BASEDIR ]; then
   BASEDIR=$HOME/openscad_deps
+  export BASEDIR
 fi
-DEPLOYDIR=$BASEDIR
 
-export PATH=$BASEDIR/bin:$PATH
-export LD_LIBRARY_PATH=$DEPLOYDIR/lib:$DEPLOYDIR/lib64
-export LD_RUN_PATH=$DEPLOYDIR/lib:$DEPLOYDIR/lib64
-export OPENSCAD_LIBRARIES=$DEPLOYDIR
-export GLEWDIR=$DEPLOYDIR
+DEPLOYDIR=$BASEDIR
+PATH=$BASEDIR/bin:$PATH
+LD_LIBRARY_PATH=$DEPLOYDIR/lib:$DEPLOYDIR/lib64:$LD_LIBRARY_PATH
+LD_RUN_PATH=$LD_LIBRARY_PATH:$LD_RUN_PATH
+OPENSCAD_LIBRARIES=$DEPLOYDIR
+GLEWDIR=$DEPLOYDIR
+
+export DEPLOYDIR
+export PATH
+export LD_LIBRARY_PATH
+export LD_RUN_PATH
+export OPENSCAD_LIBRARIES
+export GLEWDIR
 
 echo BASEDIR: $BASEDIR
 echo DEPLOYDIR: $DEPLOYDIR

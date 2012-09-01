@@ -11,23 +11,29 @@
 # Also see http://en.wikibooks.org/wiki/OpenSCAD_User_Manual/Cross-compiling_for_Windows_on_Linux_or_Mac_OS_X
 #
 
-export OPENSCADDIR=$PWD
+OPENSCADDIR=$PWD
+export OPENSCADDIR
 
 if [ ! $BASEDIR ]; then
-	export BASEDIR=$HOME/openscad_deps
+	BASEDIR=$HOME/openscad_deps
+	export BASEDIR
 fi
 
 if [ ! $DEPLOYDIR ]; then
-	export DEPLOYDIR=$OPENSCADDIR/mingw32
+	DEPLOYDIR=$OPENSCADDIR/mingw32
+        export DEPLOYDIR
 fi
 
 if [ ! $MXEDIR ]; then
-	export MXEDIR=$BASEDIR/mxe
+	MXEDIR=$BASEDIR/mxe
+	export MXEDIR
 fi
 
-export PATH=$MXEDIR/usr/bin:$PATH
+PATH=$MXEDIR/usr/bin:$PATH
+export PATH
 
 echo BASEDIR: $BASEDIR
+echo "(BASEDIR is not used during mingw cross builds)"
 echo MXEDIR: $MXEDIR
 echo DEPLOYDIR: $DEPLOYDIR
 echo PATH modified with $MXEDIR/usr/bin
@@ -39,5 +45,4 @@ fi
 echo linking $MXEDIR/usr/i686-pc-mingw32/ to $DEPLOYDIR/mingw-cross-env
 rm -f $DEPLOYDIR/mingw-cross-env
 ln -s $MXEDIR/usr/i686-pc-mingw32/ $DEPLOYDIR/mingw-cross-env
-
 

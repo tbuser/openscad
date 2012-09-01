@@ -1,6 +1,10 @@
-# run with '. ./scripts/setenv-freebsdbuild.sh'
+# run with '. ./scripts/setenv-netbsdbuild.sh'
 
-# use in conjuction with freebsd-build-dependencies.sh
+# use in conjuction with netbsd-build-dependencies.sh
 
-QMAKESPEC=freebsd-g++
+QMAKESPEC=netbsd-g++
 QTDIR=/usr/local/share/qt4
+
+export QMAKESPEC
+export QTDIR
+

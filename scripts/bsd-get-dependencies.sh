@@ -27,14 +27,19 @@ if [ `uname | grep OpenBSD` ]; then
   . ./scripts/setenv-openbsdbuild.sh
 
   sudo pkg_add -v bison flex cmake git bash gmake qt4
-
   sudo pkg_add -v boost eigen2 gmp mpfr glew
+
   sudo pkg_add -v cgal opencsg
   sudo pkg_add -v ImageMagick--   # -- = avoid ambiguous package
 
-  echo "if you want the newest OpenCSG (for test suite) you can copy/paste the following"
-  echo sudo pkg_delete opencsg
-  echo sudo BASEDIR=/usr/local ./scripts/uni-build-dependencies.sh opencsg
+  if [ ! "`grep OPENCSG_VERSION /usr/local/include/opencsg.h`" ]; then
+    echo "if you want the newest OpenCSG (for test suite) you can copy/paste the following"
+    echo sudo su 
+    echo pkg_delete opencsg
+    echo BASEDIR=/usr/local . ./scripts/setenv-openbsdbuild.sh
+    echo ./scripts/uni-build-dependencies.sh opencsg
+    echo exit
+  fi
 fi
 
 if [ `uname | grep FreeBSD` ]; then

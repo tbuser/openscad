@@ -20,9 +20,9 @@
 # Prerequisites:
 #  wget or curl
 #  Qt4
-#
+#  
 # Design:
-#  portability is enhanced by ultra-simplicity, lack of cleverness.
+#  portability is enhanced by simplicity
 
 printUsage()
 {
@@ -215,19 +215,20 @@ build_opencsg()
 
   if [ "`command -v qmake-qt4`" ]; then
     OPENCSG_QMAKE=qmake-qt4
+  elif [ "`command -v qmake4`" ]; then
+    OPENCSG_QMAKE=qmake4
   else
     OPENCSG_QMAKE=qmake
   fi
 
-  cd $BASEDIR/src/OpenCSG-$version/src
-  $OPENCSG_QMAKE $OPENCSG_QFLAGS
   cd $BASEDIR/src/OpenCSG-$version
-  $OPENCSG_QMAKE $OPENCSG_QFLAGS
-
+  $OPENCSG_QMAKE
   make
 
   ls lib/* include/*
   echo "installing to -->" $DEPLOYDIR
+  mkdir -p $DEPLOYDIR/lib
+  mkdir -p $DEPLOYDIR/include
   install lib/* $DEPLOYDIR/lib
   install include/* $DEPLOYDIR/include
   cd $OPENSCADDIR
@@ -268,7 +269,6 @@ if [ ! -f $OPENSCADDIR/openscad.pro ]; then
   exit 0
 fi
 
-. ./scripts/setenv-linbuild.sh # '.' is equivalent to 'source'
 SRCDIR=$BASEDIR/src
 
 if [ ! $NUMCPU ]; then
