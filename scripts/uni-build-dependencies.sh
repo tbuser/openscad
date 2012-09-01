@@ -1,20 +1,28 @@
 #!/bin/sh -e
 
-# test_pretty_print copyright 2012 don bright. released under the GPL 2, or
-# later, as described in the file named 'COPYING' in OpenSCAD's project root.
-# permission to change this license is given to Marius Kintel & Clifford Wolf
-
 #
-# This script builds all library dependencies of OpenSCAD for Linux
+# This script downloads, builds, and installs the main library 
+# dependencies needed by OpenSCAD into a path specified by the BASEDIR 
+# environment variable. This script works on Linux, BSD, and similar systems.
 #
 # This script must be run from the OpenSCAD source root directory
 #
-# Usage: linux-build-dependencies.sh
+# Usage: 
+#  # build into standard $HOME/openscad_deps
+#  uni-build-dependencies.sh
+#
+#  # build OpenCSG only, install into /usr/local/
+#  sudo BASEDIR=/usr/local uni-build-dependencies.sh opencsg 
+#
+#  # build CGAL only, install into /usr/local/
+#  sudo BASEDIR=/usr/local uni-build-dependencies.sh cgal
 #
 # Prerequisites:
-# - wget or curl
-# - Qt4
+#  wget or curl
+#  Qt4
 #
+# Design:
+#  portability is enhanced by ultra-simplicity, lack of cleverness.
 
 printUsage()
 {
@@ -202,19 +210,8 @@ build_opencsg()
   fi
   tar xzf OpenCSG-$version.tar.gz
   cd OpenCSG-$version
-  sed -ibak s/example// opencsg.pro # examples might be broken without GLUT
-
-  # Fedora 64-bit
-	if [ -e /usr/lib64 ]; then
-	  if [ "`ls /usr/lib64 | grep Xmu`" ]; then
-	    echo "modifying opencsg makefile for 64 bit machine"
-	    sed -ibak s/"\-lXmu"/"\-L\/usr\/lib64\/libXmu.so.6"/ src/Makefile 
-	  fi
-	fi
-
-  if [ `uname | grep FreeBSD` ]; then
-    sed -ibak s/X11R6/local/g src/Makefile
-   fi
+  cp opencsg.pro opencsg.pro.bak
+  cat opencsg.pro.bak | sed s/example// > opencsg.pro
 
   if [ "`command -v qmake-qt4`" ]; then
     OPENCSG_QMAKE=qmake-qt4
@@ -222,21 +219,17 @@ build_opencsg()
     OPENCSG_QMAKE=qmake
   fi
 
-	if [ $CXX ]; then
-		if [ $CXX = "clang++" ]; then
-		  cd $BASEDIR/src/OpenCSG-$version/src
-			$OPENCSG_QMAKE
-		  cd $BASEDIR/src/OpenCSG-$version
-			$OPENCSG_QMAKE
-		fi
-	else
-		$OPENCSG_QMAKE
-	fi
+  cd $BASEDIR/src/OpenCSG-$version/src
+  $OPENCSG_QMAKE $OPENCSG_QFLAGS
+  cd $BASEDIR/src/OpenCSG-$version
+  $OPENCSG_QMAKE $OPENCSG_QFLAGS
 
   make
 
-  cp -av lib/* $DEPLOYDIR/lib
-  cp -av include/* $DEPLOYDIR/include
+  ls lib/* include/*
+  echo "installing to -->" $DEPLOYDIR
+  install lib/* $DEPLOYDIR/lib
+  install include/* $DEPLOYDIR/include
   cd $OPENSCADDIR
 }
 
