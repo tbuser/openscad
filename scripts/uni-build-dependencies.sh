@@ -148,20 +148,37 @@ build_cgal()
   echo "Building CGAL" $version "..."
   cd $BASEDIR/src
   rm -rf CGAL-$version
-  if [ ! -f CGAL-$version.tar.gz ]; then
-    #4.0.2
-    curl -O https://gforge.inria.fr/frs/download.php/31174/CGAL-$version.tar.bz2
-    # 4.0 curl -O https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.gz
-    # 3.9 curl -O https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.gz
-    # 3.8 curl -O https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.gz
-    # 3.7 curl -O https://gforge.inria.fr/frs/download.php/27641/CGAL-$version.tar.gz
+  if [ ! -f CGAL-$version.tar.bz2 ]; then
+    if [ $version = 4.0.2 ]; then
+      curl -kO https://gforge.inria.fr/frs/download.php/31174/CGAL-$version.tar.bz2
+    elif [ $version = 4.0 ];  then
+      curl -kO https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.bz2
+    elif [ $version = 3.9 ];  then
+      curl -kO https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.bz2
+    elif [ $version = 3.8 ];  then
+      curl -kO https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.bz2
+    elif [ $version = 3.7 ];  then
+      curl -kO https://gforge.inria.fr/frs/download.php/27641/CGAL-$version.tar.bz2
+    else
+      echo unknown CGAL version $version . please edit script
+      exit
+    fi
   fi
   tar jxf CGAL-$version.tar.bz2
-  cd CGAL-$version
+  cd $BASEDIR/src/CGAL-$version
+
+  if [ "`uname -a | grep NetBSD.*amd64`" ]; then
+    cd include/CGAL && echo patching CGAL FPU.h for netbsd amd64
+    patch < $OPENSCADDIR/patches/CGAL-netbsd-amd64.fpu.patch
+    cd $BASEDIR/src/CGAL-$version
+  fi
+
+  mkdir build
+  cd build
   if [ $2 = use-sys-libs ]; then
-    cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DCMAKE_BUILD_TYPE=Debug
+    cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DCMAKE_BUILD_TYPE=Debug ..
   else
-    cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DGMP_INCLUDE_DIR=$DEPLOYDIR/include -DGMP_LIBRARIES=$DEPLOYDIR/lib/libgmp.so -DGMPXX_LIBRARIES=$DEPLOYDIR/lib/libgmpxx.so -DGMPXX_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_LIBRARIES=$DEPLOYDIR/lib/libmpfr.so -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DBOOST_ROOT=$DEPLOYDIR -DCMAKE_BUILD_TYPE=Debug
+    cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DGMP_INCLUDE_DIR=$DEPLOYDIR/include -DGMP_LIBRARIES=$DEPLOYDIR/lib/libgmp.so -DGMPXX_LIBRARIES=$DEPLOYDIR/lib/libgmpxx.so -DGMPXX_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_LIBRARIES=$DEPLOYDIR/lib/libmpfr.so -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DBOOST_ROOT=$DEPLOYDIR -DCMAKE_BUILD_TYPE=Debug ..
   fi
   make -j$NUMCPU
   make install
@@ -181,21 +198,14 @@ build_glew()
   mkdir -p $DEPLOYDIR/lib/pkgconfig
 
   # Fedora 64-bit
-	if [ -e /usr/lib64 ]; then
-	  if [ "`ls /usr/lib64 | grep Xmu`" ]; then
-	    echo "modifying glew makefile for 64 bit machine"
-	    sed -ibak s/"\-lXmu"/"\-L\/usr\/lib64\/libXmu.so.6"/ config/Makefile.linux
-	  fi
-	fi
+  if [ -e /usr/lib64 ]; then
+    if [ -e /usr/lib64/libXmu.so ]; then
+      echo "modifying glew makefile for 64 bit machine"
+      sed -ibak s/"\-lXmu"/"\-L\/usr\/lib64\/libXmu.so"/ config/Makefile.linux
+    fi
+  fi
 
-	if [ $CC ]; then
-		if [ $CC = "clang" ]; then
-			echo "modifying glew makefile for clang"
-			sed -i s/\$\(CC\)/clang/ Makefile
-		fi
-	fi
-
-	GLEW_DEST=$DEPLOYDIR make -j$NUMCPU
+  GLEW_DEST=$DEPLOYDIR make CC=$CC -j$NUMCPU
   GLEW_DEST=$DEPLOYDIR make install
 }
 
@@ -220,6 +230,10 @@ build_opencsg()
   else
     OPENCSG_QMAKE=qmake
   fi
+
+  # manually rebuild the src/Makefile (some systems don't auto-rebuild it)
+  cd $BASEDIR/src/OpenCSG-$version/src
+  $OPENCSG_QMAKE
 
   cd $BASEDIR/src/OpenCSG-$version
   $OPENCSG_QMAKE
@@ -312,7 +326,7 @@ fi
 # Singly build CGAL (Some systems lack an updated CGAL. This eases building)
 # (They can be built singly here by passing a command line arg to the script)
 if [ $1 ]; then
-  if [ $1 = "cgal-use-sys-libs" ]; then
+  if [ $1 = "cgal" ]; then
     build_cgal 4.0.2 use-sys-libs
     exit
   fi
