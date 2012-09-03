@@ -678,25 +678,45 @@ endmacro()
 
 enable_testing()
 
-# set up custom pretty printing of results
+
+# Set up custom commands to run before & after Ctest run. 
+# Before = Start a virtual framebuffer if needed on Linux/BSD
+# After = Pretty print results
+# How it works:
+# 1. set up text for commands
+# 2. write commands to CTestCustom.cmake file in build directory
 
 set(INFOCMD "execute_process(COMMAND ${CMAKE_CURRENT_BINARY_DIR}/opencsgtest --info OUTPUT_FILE sysinfo.txt)")
 if (MINGW_CROSS_ENV_DIR)
   set(INFOCMD "execute_process(COMMAND wine ${CMAKE_CURRENT_BINARY_DIR}/opencsgtest --info OUTPUT_FILE sysinfo.txt)")
 endif()
-set(PRETTYCMD "\"${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pretty_print.py --builddir=${CMAKE_CURRENT_BINARY_DIR}\"")
-set(CTEST_CUSTOM_FILE ${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake)
-set(CTEST_CUSTOM_TXT "\n
-  message(\"running 'opencsgtest --info' to generate sysinfo.txt\")\n
-  ${INFOCMD}\n
-  set(CTEST_CUSTOM_POST_TEST ${PRETTYCMD})\n
-")
-file(WRITE ${CTEST_CUSTOM_FILE} ${CTEST_CUSTOM_TXT})
 
+set(PRETTYCMD "\"${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_pretty_print.py --builddir=${CMAKE_CURRENT_BINARY_DIR}\"")
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "BSD|Linux")
+  set(VFBCMD "execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/start_virtualfb.sh)")
+  message(STATUS "Linux/BSD: will use start_virtualfb.sh if needed)
+else()
+  set(VFBCMD "")
+endif()
+
+# copy just for a convenience for development (and '--upload')
 foreach(FILE test_pretty_print.py)
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${FILE}
                  ${CMAKE_CURRENT_BINARY_DIR}/${FILE} COPYONLY)
 endforeach()
+
+set(CTEST_CUSTOM_FILE ${CMAKE_CURRENT_BINARY_DIR}/CTestCustom.cmake)
+set(CTEST_CUSTOM_TXT "\n
+  message(\"running 'opencsgtest --info' to generate sysinfo.txt\")\n
+  ${INFOCMD}\n
+  set(CTEST_CUSTOM_PRE_TEST ${VFBCMD})\n
+  set(CTEST_CUSTOM_POST_TEST ${PRETTYCMD})\n
+")
+file(WRITE ${CTEST_CUSTOM_FILE} ${CTEST_CUSTOM_TXT})
+
+
+# Configuration of tests
 
 set_directory_properties(PROPERTIES TEST_INCLUDE_FILE "${CMAKE_SOURCE_DIR}/EnforceConfig.cmake")
 

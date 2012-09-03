@@ -155,20 +155,24 @@ build_boost()
   if [ -e "./bjam" ]; then BUILDER=./bjam; fi
   if [ -e "./b2" ]; then BUILDER=./b2; fi
 
+  if [ `uname | grep OpenBSD`]; then
+    BJAM_CXXFLAGS=-D__STDC_LIMIT_MACROS
+  fi
+
   if [ $CXX ]; then
     if [ $CXX = "clang++" ]; then
-      ./$BUILDER -j$NUMCPU toolset=clang install
+      ./$BUILDER -j$NUMCPU toolset=clang cxxflags=$BJAM_CXXFLAGS
       # ./b2 -j$NUMCPU toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" install
     fi
   else
-    ./$BUILDER -j$NUMCPU
-    ./$BUILDER install
+    ./$BUILDER -j$NUMCPU cxxflags=$BJAM_CXXFLAGS
   fi
+  ./$BUILDER install
 }
 
 build_cgal()
 {
-  if [ -e $DEPLOYDIR/include/CGAL ]; then
+  if [ -e $DEPLOYDIR/include/CGAL/version.h ]; then
     echo "CGAL already installed. not building"
     return
   fi
