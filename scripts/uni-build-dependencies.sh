@@ -152,15 +152,18 @@ build_boost()
   cd boost_$bversion
   # We only need certain portions of boost
   ./bootstrap.sh --prefix=$DEPLOYDIR --with-libraries=thread,program_options,filesystem,system,regex
-	if [ $CXX ]; then
-		if [ $CXX = "clang++" ]; then
-		  ./b2 -j$NUMCPU toolset=clang install
-		  # ./b2 -j$NUMCPU toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" install
-		fi
-	else
-	  ./b2 -j$NUMCPU
-	  ./b2 install
-	fi
+  if [ -e "./bjam" ]; then BUILDER=./bjam; fi
+  if [ -e "./b2" ]; then BUILDER=./b2; fi
+
+  if [ $CXX ]; then
+    if [ $CXX = "clang++" ]; then
+      ./$BUILDER -j$NUMCPU toolset=clang install
+      # ./b2 -j$NUMCPU toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" install
+    fi
+  else
+    ./$BUILDER -j$NUMCPU
+    ./$BUILDER install
+  fi
 }
 
 build_cgal()

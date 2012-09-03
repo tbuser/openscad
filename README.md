@@ -138,27 +138,24 @@ Then after you've cloned this git repository, use a package manager to
 download packages for the dependency libraries listed above. Convenience 
 scripts are provided for some popular systems:
 
-    Ubuntu, Debian:    ./scripts/ubuntu-build-dependencies.sh
-    OpenSUSE:          ./scripts/opensuse-build-dependencies.sh
-    Fedora:            ./scripts/fedora-build-dependencies.sh
+    ./scripts/linux-get-dependenies.sh
 
 Check your library versions to make sure they meet the minimum 
 requirements listed above. After that follow the Compilation 
 instructions below.
 
-### Building for older Linux or building without root access
+### Building on older Linux systems, or without root access
 
 First, make sure that you have development tools installed to get GCC.
 Then after you've cloned this git repository, run the script that sets 
 up the environment variables.
 
-    source ./scripts/setenv-linbuild.sh
+    source ./scripts/setenv-uni-build.sh
 
 Then run the script to download & compile all the prerequisite libraries above:
 
-    ./scripts/linux-build-dependencies.sh
+    ./scripts/uni-build-dependencies.sh
 
-Then add LD_LIBRARY_PATH=$HOME/openscad_deps to your ~/.bashrc
 After that, follow the Compilation instructions below.
 
 ### Building for Windows
