@@ -329,6 +329,7 @@ find_package(BISON REQUIRED)
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
   # FreeBSD has an old flex in /usr/bin and a new flex in /usr/local/bin
+  include_directories( /usr/local/include /usr/X11R6/include )
   set(FLEX_EXECUTABLE /usr/local/bin/flex)
 endif()
 

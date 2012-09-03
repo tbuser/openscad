@@ -11,11 +11,12 @@
 #  # build into standard $HOME/openscad_deps
 #  uni-build-dependencies.sh
 #
-#  # build OpenCSG only, install into /usr/local/
-#  sudo BASEDIR=/usr/local uni-build-dependencies.sh opencsg 
+#  # build only CGAL
+#  uni-build-dependencies.sh cgal
 #
-#  # build CGAL only, install into /usr/local/
-#  sudo BASEDIR=/usr/local uni-build-dependencies.sh cgal
+#  # build only OpenCSG
+#  uni-build-dependencies.sh opencsg 
+#
 #
 # Prerequisites:
 #  wget or curl
@@ -37,7 +38,7 @@ build_git()
   cd $BASEDIR/src
   rm -rf git-$version
   if [ ! -f git-$version.tar.gz ]; then
-    curl -O http://git-core.googlecode.com/files/git-$version.tar.gz
+    curl -kO http://git-core.googlecode.com/files/git-$version.tar.gz
   fi
   tar zxf git-$version.tar.gz
   cd git-$version
@@ -53,7 +54,7 @@ build_cmake()
   cd $BASEDIR/src
   rm -rf cmake-$version
   if [ ! -f cmake-$version.tar.gz ]; then
-    curl -O http://www.cmake.org/files/v2.8/cmake-$version.tar.gz
+    curl -kO http://www.cmake.org/files/v2.8/cmake-$version.tar.gz
   fi
   tar zxf cmake-$version.tar.gz
   cd cmake-$version
@@ -71,13 +72,21 @@ build_curl()
   cd $BASEDIR/src
   rm -rf curl-$version
   if [ ! -f curl-$version.tar.bz2 ]; then
-    wget http://curl.haxx.se/download/curl-$version.tar.bz2
+    if [ "`command -v wget`" ]; then
+      wget http://curl.haxx.se/download/curl-$version.tar.bz2
+    elif [ "`command -v fetch`" ]; then
+      fetch http://curl.haxx.se/download/curl-$version.tar.bz2
+    else
+      echo 'cannot find curl, wget, or fetch'
+      exit
+    fi
   fi
   tar xjf curl-$version.tar.bz2
   cd curl-$version
   mkdir build
   cd build
-  ../configure --prefix=$DEPLOYDIR
+  # manual requires 'perl' to be installed. we might not have it.
+  ../configure --prefix=$DEPLOYDIR --disable-manual
   make -j$NUMCPU
   make install
 }
@@ -85,11 +94,15 @@ build_curl()
 build_gmp()
 {
   version=$1
+  if [ -e $DEPLOYDIR/include/gmp.h ]; then
+    echo "gmp already installed. not building"
+    return
+  fi
   echo "Building gmp" $version "..."
   cd $BASEDIR/src
   rm -rf gmp-$version
   if [ ! -f gmp-$version.tar.bz2 ]; then
-    curl -O ftp://ftp.gmplib.org/pub/gmp-$version/gmp-$version.tar.bz2
+    curl -kO ftp://ftp.gmplib.org/pub/gmp-$version/gmp-$version.tar.bz2
   fi
   tar xjf gmp-$version.tar.bz2
   cd gmp-$version
@@ -101,12 +114,16 @@ build_gmp()
 
 build_mpfr()
 {
+  if [ -e $DEPLOYDIR/include/mpfr.h ]; then
+    echo "mpfr already installed. not building"
+    return
+  fi
   version=$1
   echo "Building mpfr" $version "..."
   cd $BASEDIR/src
   rm -rf mpfr-$version
   if [ ! -f mpfr-$version.tar.bz2 ]; then
-    curl -O http://www.mpfr.org/mpfr-$version/mpfr-$version.tar.bz2
+    curl -kO http://www.mpfr.org/mpfr-$version/mpfr-$version.tar.bz2
   fi
   tar xjf mpfr-$version.tar.bz2
   cd mpfr-$version
@@ -119,6 +136,10 @@ build_mpfr()
 
 build_boost()
 {
+  if [ -e $DEPLOYDIR/include/boost ]; then
+    echo "boost already installed. not building"
+    return
+  fi
   version=$1
   bversion=`echo $version | tr "." "_"`
   echo "Building boost" $version "..."
@@ -144,6 +165,10 @@ build_boost()
 
 build_cgal()
 {
+  if [ -e $DEPLOYDIR/include/CGAL ]; then
+    echo "CGAL already installed. not building"
+    return
+  fi
   version=$1
   echo "Building CGAL" $version "..."
   cd $BASEDIR/src
@@ -186,6 +211,10 @@ build_cgal()
 
 build_glew()
 {
+  if [ -e $DEPLOYDIR/include/GL/glew.h ]; then
+    echo "glew already installed. not building"
+    return
+  fi
   version=$1
   echo "Building GLEW" $version "..."
   cd $BASEDIR/src
@@ -205,18 +234,32 @@ build_glew()
     fi
   fi
 
-  GLEW_DEST=$DEPLOYDIR make CC=$CC -j$NUMCPU
-  GLEW_DEST=$DEPLOYDIR make install
+  MAKER=make
+  if [ "`uname | grep BSD`" ]; then
+    if [ "`command -v gmake`" ]; then
+      MAKER=gmake
+    else
+      echo "building glew on BSD requires gmake (gnu make)"
+      exit
+    fi
+  fi
+
+  GLEW_DEST=$DEPLOYDIR $MAKER -j$NUMCPU
+  GLEW_DEST=$DEPLOYDIR $MAKER install
 }
 
 build_opencsg()
 {
+  if [ -e $DEPLOYDIR/include/opencsg.h ]; then
+    echo "OpenCSG already installed. not building"
+    return
+  fi
   version=$1
   echo "Building OpenCSG" $version "..."
   cd $BASEDIR/src
   rm -rf OpenCSG-$version
   if [ ! -f OpenCSG-$version.tar.gz ]; then
-    curl -O http://www.opencsg.org/OpenCSG-$version.tar.gz
+    curl -kO http://www.opencsg.org/OpenCSG-$version.tar.gz
   fi
   tar xzf OpenCSG-$version.tar.gz
   cd OpenCSG-$version
@@ -251,6 +294,18 @@ build_opencsg()
 build_eigen()
 {
   version=$1
+  if [ -e $DEPLOYDIR/include/eigen2 ]; then
+    if [ `echo $version | grep 2....` ]; then
+      echo "Eigen2 already installed. not building"
+      return
+    fi
+  fi
+  if [ -e $DEPLOYDIR/include/eigen3 ]; then
+    if [ `echo $version | grep 3....` ]; then
+      echo "Eigen3 already installed. not building"
+      return
+    fi
+  fi
   echo "Building eigen" $version "..."
   cd $BASEDIR/src
   rm -rf eigen-$version
@@ -263,7 +318,7 @@ build_eigen()
   fi
   rm -rf ./$EIGENDIR
   if [ ! -f eigen-$version.tar.bz2 ]; then
-    curl -LO http://bitbucket.org/eigen/eigen/get/$version.tar.bz2
+    curl -kLO http://bitbucket.org/eigen/eigen/get/$version.tar.bz2
     mv $version.tar.bz2 eigen-$version.tar.bz2
   fi
   tar xjf eigen-$version.tar.bz2

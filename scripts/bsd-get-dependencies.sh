@@ -6,39 +6,70 @@ if [ ! -f $OPENSCADDIR/openscad.pro ]; then
   exit 0
 fi
 
+# check that OpenCSG exists and is the minimum version
+check_opencsg()
+{
+  prefix=$1
+  if [ -e $1/include/opencsg.h ]; then
+    # we need 1.3.2. before 1.3.2 there is no VERSION in the header.
+    if [ grep VERSION $1/include/opencsg.h ]; then
+      return 1
+    fi
+  fi 
+  return 0
+}
+
+# check that CGAL exists and is the minimum version
+check_cgal()
+{
+  prefix=$1
+  if [ -e /usr/pkg/include/CGAL/version ]; then 
+    if [ "`grep CGAL_VERSION.*3.[7-9]..`" ]; then return 1; fi
+    if [ "`grep CGAL_VERSION.*4.[0-9]..`" ]; then return 1; fi
+  fi 
+  return 0
+}
+
+
+# notify user that some libs should be upgraded, provide copy/paste to do so
+advise_upgrade()
+{
+  prefix=$1
+  envsetter=$2
+  echo "Copy/paste the following to install other libraries from source:"
+  echo " sudo bash"
+  echo " export BASEDIR=$prefix"
+  echo " . ./scripts/setenv-$2build"
+  if [ $1 ]; then
+    if [ `pkg_info | grep $1` ]; then echo " pkg_delete $1"; fi
+    echo " ./scripts/uni-build-dependencies.sh $1"; 
+  fi
+  if [ $2 ]; then
+    if [ `pkg_info | grep $2` ]; then echo " pkg_delete $2"; fi
+    echo " ./scripts/uni-build-dependencies.sh $2"; 
+  fi
+}
+
 
 if [ `uname | grep NetBSD` ]; then
   echo "NetBSD detected"
   echo "Tested on NetBSD 5/6. See README.md for more build info"
   . ./scripts/setenv-netbsdbuild.sh
 
-  sudo pkgin install boost-libs boost-headers \
+  # sudo pkgin has bizarre problems on VMs. run it thru 'sudo bash' instead
+
+  sudo bash -c "pkgin install boost-libs boost-headers \
    cmake git eigen glew gmp glu mpfr qt4 \
    qt4-libs qt4-tools qt4-qdbus Mesa modular-xorg-libs \
-   libXmu bison flex git cmake gmake curl wget # cgal opencsg
+   libXmu bison flex git cmake gmake curl wget \
+   cgal opencsg \
+   python imagemagick"
 
-  NEED_OPENCSG=
-  NEED_CGAL=
-  if [ ! -e /usr/pkg/include/CGAL ] ; then NEED_CGAL=1; fi  
-  if [ ! -e /usr/pkg/include/opencsg.h ]; then 
-    NEED_OPENCSG=1; 
-  elif [ ! "`grep VERSION /usr/pkg/include/opencsg.h`" ] ; then 
-    NEED_OPENCSG=1; 
-  fi
-
-  if [ $NEED_OPENCSG ]; then
-    echo "Copy/paste the following to install other libraries from source:"
-    echo " sudo bash"
-    echo " export BASEDIR=/usr/pkg"
-    echo " . ./scripts/setenv-netbsdbuild.sh"
-    if [ $NEED_CGAL ]; then 
-      echo " ./scripts/uni-build-dependencies.sh cgal"
-    fi
-    if [ $NEED_OPENCSG ]; then 
-      echo " ./scripts/uni-build-dependencies.sh opencsg"
-    fi
-    echo " exit"
-  fi
+   if [ `check_opencsg /usr/pkg` ]; then NEED_LIBS=opencsg; fi
+   if [ `check_cgal /usr/pkg` ]; then NEED_LIBS="$NEED_LIBS cgal"; fi
+   if [ $NEED_LIBS ]; then 
+     advise_upgrade /usr/pkg netbsd $NEED_LIBS
+   fi
 fi
 
 
@@ -52,16 +83,12 @@ if [ `uname | grep OpenBSD` ]; then
   sudo pkg_add -v boost eigen2 gmp mpfr glew
 
   sudo pkg_add -v cgal opencsg
-  sudo pkg_add -v ImageMagick--   # -- = avoid ambiguous package
+  sudo pkg_add -v ImageMagick-- python  # -- = avoid ambiguous package
 
-  if [ ! "`grep OPENCSG_VERSION /usr/local/include/opencsg.h`" ]; then
-    echo "Your BSD is using an old version of OpenCSG. "
-    echo "if you want the newest OpenCSG (for test suite) you can copy/paste the following"
-    echo sudo su
-    echo pkg_delete opencsg
-    echo BASEDIR=/usr/local . ./scripts/setenv-openbsdbuild.sh
-    echo ./scripts/uni-build-dependencies.sh opencsg
-    echo exit
+  if [ `check_opencsg /usr/local` ]; then NEED_LIBS=opencsg; fi
+  if [ `check_cgal /usr/local` ]; then NEED_LIBS="$NEED_LIBS cgal"; fi
+  if [ $NEED_LIBS ]; then 
+    advise_upgrade /usr/local openbsd $NEED_LIBS
   fi
 fi
 
@@ -72,22 +99,19 @@ if [ `uname | grep FreeBSD` ]; then
 	
   . ./scripts/setenv-freebsdbuild.sh
 
-  sudo pkg_add -r bison boost-libs cmake git bash eigen2 flex gmake gmp mpfr 
-  sudo pkg_add -r xorg libGLU libXmu libXi xorg-vfbserver glew
-  sudo pkg_add -r qt4-corelib qt4-gui qt4-moc qt4-opengl qt4-qmake qt4-rcc qt4-uic
-  sudo pkg_add -r cgal opencsg
+  # sudo pkg_add has bizarre problems on VMs. run it thru 'sudo bash' instead
 
-  if [ ! -e /usr/local/include/opencsg.h ]; then NEED_OPENCSG=1; fi
-  if [ ! "`grep OPENCSG_VERSION /usr/local/include/opencsg.h`" ]; then NEED_OPENCSG=1; fi
+  sudo bash -c "pkg_add -r bison boost-libs"
+  sudo bash -c "pkg_add -r cmake git bash eigen2 flex gmake gmp mpfr"
+  sudo bash -c "pkg_add -r xorg libGLU libXmu libXi xorg-vfbserver glew"
+  sudo bash -c "pkg_add -r qt4-corelib qt4-gui qt4-moc qt4-opengl qt4-qmake qt4-rcc qt4-uic"
+  sudo bash -c "pkg_add -r cgal opencsg"
+  sudo bash -c "pkg_add -r python ImageMagick"
 
-  if [ $NEED_OPENCSG ]; then
-    echo "Your BSD is missing an updated OpenCSG"
-    echo "You can copy/paste the following to install from source"
-    echo sudo su
-    echo pkg_delete opencsg
-    echo BASEDIR=/usr/local . ./scripts/setenv-openbsdbuild.sh
-    echo ./scripts/uni-build-dependencies.sh opencsg
-    echo exit
+  if [ `check_opencsg /usr/local` ]; then NEED_LIBS=opencsg; fi
+  if [ `check_cgal /usr/local` ]; then NEED_LIBS="$NEED_LIBS cgal"; fi
+  if [ $NEED_LIBS ]; then 
+    advise_upgrade /usr/local openbsd $NEED_LIBS
   fi
 fi
 	
