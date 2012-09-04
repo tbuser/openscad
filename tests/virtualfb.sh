@@ -1,4 +1,11 @@
-# used to start/stop a virtual framebuffer device on linux/bsd systems
+# virtualfb.sh copyright Don Bright <hugh.m.bright@gmail.com> Released
+# under the GPL 2 or later, as described in the file named 'COPYING' in
+# OpenSCAD's project root. Permission to change this license is given to
+# Marius Kintel & Clifford Wolf
+#
+# Purpose:
+#  Used to start/stop a virtual framebuffer device on linux/bsd systems
+#  'stop' means kill all Xvfb/Xvnc processes running under the user's uid
 #
 # Usage:
 #  virtualfb.sh start
@@ -136,5 +143,5 @@ check_running
 if [ ! check_running_result ]; then
   echo Failed to start virtual framebuffer. Please see $LOGFILE
 else
-  echo "started "$check_running_result", pid "$check_running_pid", DISPLAY="$NEWDISPLAY
+  echo "started "$check_running_result", pid "$check_running_pid", DISPLAY="$NEWDISPLAY", logfile "$LOGFILE
 fi
