@@ -8,7 +8,6 @@
 # This script must be run from the OpenSCAD source root directory
 #
 # Usage: 
-#  # build into standard $HOME/openscad_deps
 #  uni-build-dependencies.sh
 #
 #  # build only CGAL
@@ -22,8 +21,9 @@
 #  wget or curl
 #  Qt4
 #  
-# Design:
-#  portability is enhanced by simplicity
+# Notes:
+#  This is designed to be portable, with simple
+#  commands, and testing on the major BSDs + Linuxes
 
 printUsage()
 {
@@ -91,6 +91,16 @@ build_curl()
   make install
 }
 
+openbsd_fix_so_link()
+{
+  if [ "`uname | grep OpenBSD`" ]; then
+    if [ ! -e $DEPLOYDIR/lib/lib$1.so ]; then
+      echo "On OpenBSD and lib$1.so link not created. Attempting to fix..." 
+      ln -s $DEPLOYDIR/lib/lib$1.so.[0-9].* $DEPLOYDIR/lib/lib$1.so
+    fi
+  fi
+}
+
 build_gmp()
 {
   version=$1
@@ -109,7 +119,10 @@ build_gmp()
   mkdir build
   cd build
   ../configure --prefix=$DEPLOYDIR --enable-cxx
+  make
   make install
+  openbsd_fix_so_link gmp
+  openbsd_fix_so_link gmpxx
 }
 
 build_mpfr()
@@ -130,7 +143,9 @@ build_mpfr()
   mkdir build
   cd build
   ../configure --prefix=$DEPLOYDIR --with-gmp=$DEPLOYDIR
+  make 
   make install
+  openbsd_fix_so_link mpfr
   cd ..
 }
 
@@ -155,17 +170,18 @@ build_boost()
   if [ -e "./bjam" ]; then BUILDER=./bjam; fi
   if [ -e "./b2" ]; then BUILDER=./b2; fi
 
-  if [ `uname | grep OpenBSD`]; then
-    BJAM_CXXFLAGS=-D__STDC_LIMIT_MACROS
+  BJAM_FEATURES=
+  if [ "`uname | grep OpenBSD`" ]; then
+    BJAM_FEATURES='cxxflags=-D__STDC_LIMIT_MACROS'
   fi
 
   if [ $CXX ]; then
     if [ $CXX = "clang++" ]; then
-      ./$BUILDER -j$NUMCPU toolset=clang cxxflags=$BJAM_CXXFLAGS
+      ./$BUILDER -j$NUMCPU toolset=clang $BJAM_FEATURES
       # ./b2 -j$NUMCPU toolset=clang cxxflags="-stdlib=libc++" linkflags="-stdlib=libc++" install
     fi
   else
-    ./$BUILDER -j$NUMCPU cxxflags=$BJAM_CXXFLAGS
+    ./$BUILDER -j$NUMCPU $BJAM_FEATURES
   fi
   ./$BUILDER install
 }
@@ -207,13 +223,13 @@ build_cgal()
 
   mkdir build
   cd build
+  CMAKEOPTS="-DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DGMP_INCLUDE_DIR=$DEPLOYDIR/include -DGMP_LIBRARIES=$DEPLOYDIR/lib/libgmp.so -DGMPXX_LIBRARIES=$DEPLOYDIR/lib/libgmpxx.so -DGMPXX_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_LIBRARIES=$DEPLOYDIR/lib/libmpfr.so -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DBOOST_ROOT=$DEPLOYDIR -DCMAKE_BUILD_TYPE=Debug"
   if [ $2 ]; then
     if [ $2 = use-sys-libs ]; then
-      cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DCMAKE_BUILD_TYPE=Debug ..
-    else
-      cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DGMP_INCLUDE_DIR=$DEPLOYDIR/include -DGMP_LIBRARIES=$DEPLOYDIR/lib/libgmp.so -DGMPXX_LIBRARIES=$DEPLOYDIR/lib/libgmpxx.so -DGMPXX_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_INCLUDE_DIR=$DEPLOYDIR/include -DMPFR_LIBRARIES=$DEPLOYDIR/lib/libmpfr.so -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DBOOST_ROOT=$DEPLOYDIR -DCMAKE_BUILD_TYPE=Debug ..
+      CMAKEOPTS="-DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DWITH_CGAL_Qt3=OFF -DWITH_CGAL_Qt4=OFF -DWITH_CGAL_ImageIO=OFF -DCMAKE_BUILD_TYPE=Debug"
     fi
   fi
+  cmake $CMAKEOPTS ..
   make -j$NUMCPU
   make install
 }
