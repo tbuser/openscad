@@ -1,37 +1,140 @@
-# used to start a virtual framebuffer device on linux/bsd systems where
-# X11 is not runing.
-
+# used to start/stop a virtual framebuffer device on linux/bsd systems
+#
 # Usage:
 #  virtualfb.sh start
 #  virtualfb.sh stop
+#
+# Output:
+#  In 'start' mode, the script should print DISPLAY=:x (x=a number)
+#  which will get scraped by the CTestCustom.template ctest script
+#
+# Design:
+#  use only grep, sed
+
+# Edit DISPLAY as needed
 
 NEWDISPLAY=:5
+SCREEN='-screen 0 800x600x24'
+DEBUG= # set to 1 for debug
+LOGFILE=virtualfb.log
 
-if [ ! $DISPLAY ]; then
-  echo "No DISPLAY environment variable detected."
-  echo "Checking if Xvfb or Xvnc is running..."
-  if [ "`ps auxwww | grep Xvfb | grep -v grep`" ]; then
-    DPY=`ps auxwww | grep Xvfb | grep -v grep | grep -v sed | \
-     sed s/".*Xvfb.*:"// | sed s/" .*"//`
-    echo "Xvfb already started, DISPLAY=:"$DPY
+debug()
+{
+  if [ $DEBUG ]; then echo $* ; fi
+}
+
+find_display()
+{
+  vfb_program=$1
+  find_display_result=`ps -fu$USER | grep $vfb_program | grep -v grep | \
+    grep -v sed | sed s/".*$1.*:"// | sed s/" .*"//`;
+}
+
+findpid()
+{
+  debug findpid called w arg $1
+  findpid_result=
+  if [ `uname | grep Linux` ]; then
+    debug findpid: Linux detected
+    findpid_result=`ps -fu$USER | grep $1 | grep -v grep | grep -v sed | \
+     sed s/"$USER *"// | sed s/" .*"//`
+  elif [ `uname | grep BSD` ]; then
+    debug findpid: BSD detected
+    findpid_result=`ps | grep $1 | grep -v grep | grep -v sed | \
+     sed s/"\([0-9 ]*\)"/\\1/ | sed s/" *"//`
+  else
+    echo findpid: unknown operating system
     exit
   fi
-  if [ "`ps auxwww | grep Xvnc | grep -v grep`" ]; then
-    DPY=`ps auxwww | grep Xvnc | grep -v grep | grep -v sed | \
-     sed s/".*Xvnc.*:"// | sed s/" .*"//`
-    echo "Xvnc already started, DISPLAY=:"$DPY
+}
+
+stop()
+{
+  debug stop called
+  stop_result=
+
+  findpid Xvfb
+  if [ $findpid_result ]; then
+    echo stopping Xvfb, pid $findpid_result ;
+    kill $findpid_result ;
+    stop_result=1
+  else
+    debug no Xvfb found to stop
+  fi
+
+  findpid Xvnc
+  if [ $findpid_result ]; then
+    echo stopping Xvnc, pid $findpid_result ;
+    kill $findpid_result ;
+    stop_result=1
+  else
+    debug no Xvnc found to stop
+  fi
+}
+
+start()
+{
+  debug start called
+
+  find_display Xvfb
+  if [ $find_display_result ]; then
+    echo "Xvfb already running. DISPLAY=:"$find_display_result
     exit
   fi
-  echo "No Xvfb or Xvnc detected. Attempting to start"
+
+  find_display Xvnc
+  if [ $find_display_result ]; then
+    echo "Xvnc already running. DISPLAY=:"$find_display_result
+    exit
+  fi
+
+  debug "No Xvfb or Xvnc detected. Attempting to start"
+  debug "Logging to $LOGFILE"
+
   if [ "`command -v Xvfb`" ]; then
-    echo "Xvfb $NEWDISPLAY -screen 0 800x600x24 &> Xvfb.log &"
-    Xvfb $NEWDISPLAY -screen 0 800x600x24 &> Xvfb.log &
+    debug Xvfb command found. starting w args: $NEWDISPLAY $SCREEN
+    Xvfb $NEWDISPLAY $SCREEN &> $LOGFILE &
   elif [ "`command -v Xvnc`" ]; then
-    echo "Xvnc $NEWDISPLAY -screen 0 800x600x24 &> Xvnc.log &"
-    Xvnc $NEWDISPLAY -screen 0 800x600x24 &> Xvnc.log &
+    debug Xvnc command found. starting w args: $NEWDISPLAY $SCREEN
+    Xvnc $NEWDISPLAY $SCREEN &> $LOGFILE &
   fi
-  DISPLAY=$NEWDISPLAY
-  export DISPLAY
-  echo "DISPLAY="$NEWDISPLAY
+}
+
+check_running()
+{
+  check_running_result=
+  check_running_pid=
+
+  findpid Xvfb
+  if [ $findpid_result ] ; then
+    debug xvfb running;
+    check_running_result=Xvfb
+    check_running_pid=$findpid_result
+  fi
+
+  findpid Xvnc
+  if [ $findpid_result ] ; then
+    debug xvnc running;
+    check_running_result=Xvnc
+    check_running_pid=$findpid_result
+  fi
+}
+
+if [ $1 ]; then
+  if [ $1 = stop ]; then
+    stop
+    if [ ! $stop_result ]; then
+      echo Neither Xvnc nor Xvfb were found running.
+    fi
+    exit
+  fi
 fi
 
+start
+sleep 2
+check_running
+if [ ! check_running_result ]; then
+  echo Failed to start virtual framebuffer. Please see $LOGFILE
+else
+  echo "started "$check_running_result", pid "$check_running_pid", DISPLAY="$NEWDISPLAY
+fi
