@@ -36,7 +36,7 @@ fi
 
 if [ `uname | grep OpenBSD` ]; then
   echo OpenBSD detected
-  ulimit -d 2036792
+  echo Note - user should be in 'staff' login class to build OpenSCAD
   LD_LIBRARY_PATH=/usr/local/lib/qt4:/usr/X11R6/lib:$LD_LIBRARY_PATH
   QMAKESPEC=openbsd-g++4
   QTDIR=/usr/local/lib/qt4

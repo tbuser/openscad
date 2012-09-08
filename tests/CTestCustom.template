@@ -12,8 +12,8 @@
 # directory. It is 'run' at the time that ctest is run. 
 
 
-# Part 0. X11 and Virtual Framebuffer, for Linux/BSD. Windows and Mac 
-#         use alternative means of accessing OpenGL, and don't need this
+# Part 0. X11 and Virtual Framebuffer, for Linux/BSD. This is not used by
+#  Windows or Mac because they have alternate means of accessing OpenGL. 
 
 set(debug_openscad_template 0)
 
@@ -31,6 +31,9 @@ if( __cmake_system_name__ MATCHES "Linux|BSD")
 
   if (debug_openscad_template)
     message("Output from virtualfb.sh script: ${SVFB_OUT}")
+  endif()
+  if ("${VFB_DISPLAY}" STREQUAL "")
+    message(FATAL_ERROR "Virtual framebuffer had a problem starting.")
   else()
     message("Virtual framebuffer started with DISPLAY=${VFB_DISPLAY}")
   endif()

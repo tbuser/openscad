@@ -244,7 +244,7 @@ build_glew()
   version=$1
   echo "Building GLEW" $version "..."
   cd $BASEDIR/src
-  rm -rf glew-$version
+  #rm -rf glew-$version
   if [ ! -f glew-$version.tgz ]; then
     curl -LO http://downloads.sourceforge.net/project/glew/glew/$version/glew-$version.tgz
   fi
@@ -314,6 +314,9 @@ build_opencsg()
   mkdir -p $DEPLOYDIR/include
   install lib/* $DEPLOYDIR/lib
   install include/* $DEPLOYDIR/include
+
+  openbsd_fix_so_link opencsg
+
   cd $OPENSCADDIR
 }
 

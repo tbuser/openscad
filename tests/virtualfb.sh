@@ -52,8 +52,8 @@ LOGFILE_OUT=virtualfb.out
 
 print_usage()
 {
-  echo "  virtualfb.sh start"
-  echo "  virtualfb.sh stop"
+  echo "  virtualfb.sh start [debug]"
+  echo "  virtualfb.sh stop [debug]"
 }
 
 debug()
@@ -99,7 +99,7 @@ findpid()
   return
 }
 
-stop()
+stop_()
 {
   debug stop called
   stop_result=
@@ -123,7 +123,7 @@ stop()
   fi
 }
 
-start()
+start_()
 {
   debug start called
   start_result=
@@ -185,11 +185,17 @@ check_running()
 
 check_arguments()
 {
-  if [ ! $1 ]; then return; fi
+  for i in $*; do
+    if [ $i = debug ]; then
+      DEBUG=1
+    fi
+  done
+
   if [ $1 ]; then
-    if [ $1 = "start" ]; then return; fi
-    if [ $1 = "stop" ]; then return; fi
+    if [ $1 = start ]; then return; fi
+    if [ $1 = stop ]; then return; fi
   fi
+
   echo Unknown option: $1. Usage:
   print_usage
   echo program stopped.
@@ -199,11 +205,11 @@ check_arguments()
 
 main()
 {
-  check_arguments $1
+  check_arguments $*
 
   if [ $1 ]; then
     if [ $1 = stop ]; then
-      stop
+      stop_
       if [ ! $stop_result ]; then
         echo Neither Xvnc nor Xvfb were found running.
       fi
@@ -211,14 +217,14 @@ main()
     fi
   fi
 
-  start
+  start_
   if [ $start_result = "already_running" ]; then
     exit ;
   fi
   sleep 1
   check_running
   if [ ! $check_running_result_progname ]; then
-    echo Failed to start virtual framebuffer. Please see $LOGFILE
+    echo "Failed to start virtual framebuffer. Please see $LOGFILE_OUT & $LOGFILE_ERR"
   else
     fbprog=$check_running_result_progname
     xpid=$check_running_result_pid
@@ -228,3 +234,5 @@ main()
 
 debug calling main
 main $*
+exit 0
+
