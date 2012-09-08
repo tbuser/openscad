@@ -1,0 +1,27 @@
+--- FPU.h	2012-03-12 17:37:30.000000000 +0100
++++ FPU.h.patched	2012-09-08 17:58:21.000000000 +0200
+@@ -55,6 +55,8 @@
+ #elif defined _MSC_VER || defined __sparc__ || \
+      (defined __i386__ && !defined __PGI && !defined __SUNPRO_CC)
+    // Nothing to include.
++#elif defined __NetBSD__
++#include <ieeefp.h>
+ #else
+    // By default we use the ISO C99 version.
+ #  include <fenv.h>
+@@ -291,6 +293,15 @@
+ #define CGAL_FE_UPWARD       _RC_UP
+ #define CGAL_FE_DOWNWARD     _RC_DOWN
+ 
++#elif defined __NetBSD__
++
++#define CGAL_IA_SETFPCW(CW) fpsetround(fp_rnd(CW))
++#define CGAL_IA_GETFPCW(CW) CW = fpgetround()
++typedef int  FPU_CW_t;
++#define CGAL_FE_TONEAREST    FE_TONEAREST
++#define CGAL_FE_TOWARDZERO   FE_TOWARDZERO
++#define CGAL_FE_UPWARD       FE_UPWARD
++#define CGAL_FE_DOWNWARD     FE_DOWNWARD
+ #else
+ // This is a version following the ISO C99 standard, which aims at portability.
+ // The drawbacks are speed on one hand, and also, on x86, it doesn't fix the

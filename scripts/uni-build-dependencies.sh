@@ -216,8 +216,9 @@ build_cgal()
   cd $BASEDIR/src/CGAL-$version
 
   if [ "`uname -a | grep NetBSD.*amd64`" ]; then
-    cd include/CGAL && echo patching CGAL FPU.h for netbsd amd64
-    patch < $OPENSCADDIR/patches/CGAL-netbsd-amd64.fpu.patch
+    echo patching CGAL FPU.h for netbsd amd64
+    cd $BASEDIR/src/CGAL-$version/include/CGAL
+    patch < $OPENSCADDIR/patches/CGAL-NetBSD-FPU-amd64.patch
     cd $BASEDIR/src/CGAL-$version
   fi
 
@@ -424,7 +425,7 @@ build_mpfr 3.1.1
 build_boost 1.47.0
 # NB! For CGAL, also update the actual download URL in the function
 build_cgal 4.0.2
-build_glew 1.7.0
+build_glew 1.8.0
 build_opencsg 1.3.2
 
 echo "OpenSCAD dependencies built and installed to " $BASEDIR

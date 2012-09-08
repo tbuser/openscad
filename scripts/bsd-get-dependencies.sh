@@ -61,7 +61,7 @@ if [ `uname | grep NetBSD` ]; then
   sudo bash -c "pkgin install boost-libs boost-headers \
    cmake git eigen glew gmp glu mpfr qt4 \
    qt4-libs qt4-tools qt4-qdbus Mesa modular-xorg-libs \
-   libXmu bison flex git cmake gmake curl wget \
+   libXmu bison flex scmgit cmake gmake curl wget \
    cgal opencsg \
    python imagemagick"
 
