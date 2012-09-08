@@ -23,10 +23,12 @@
 #
 # Purpose:
 #  Used to start/stop a virtual framebuffer device on linux/bsd systems,
-#  For integration with Cmake's Ctest tool. 'stop' means kill all
-#  Xvfb/Xvnc processes running under the user's uid, there is no
-#  mechanism in this particular design, as-is, to run multiple VFBs &
-#  Ctest under a single userid.
+#  For integration with Cmake's Ctest tool, specifically the
+#  CTestCustom.template and CMakeLists.txt from OpenSCAD.
+#
+#  By stop we mean kill all Xvfb/Xvnc processes running under the user's
+#  uid, there is no mechanism in this particular design, as-is, to run
+#  multiple VFBs & Ctest under a single userid.
 #
 # Usage:
 #  See print_usage()
@@ -45,7 +47,8 @@
 NEWDISPLAY=:5
 SCREEN='-screen 0 800x600x24'
 DEBUG=  # set to 1 for debug, blank for normal
-LOGFILE=virtualfb.log
+LOGFILE_ERR=virtualfb.err
+LOGFILE_OUT=virtualfb.out
 
 print_usage()
 {
@@ -81,6 +84,7 @@ findpid()
     echo findpid: unknown operating system
     exit
   fi
+  return
 }
 
 stop()
@@ -127,16 +131,16 @@ start()
   fi
 
   debug "No Xvfb or Xvnc detected. Attempting to start"
-  debug "Logging to $LOGFILE"
+  debug "Logging to $LOGFILE_OUT and $LOGFILE_ERR"
 
   # To stop ctest from 'blocking' (hanging), we use 2>&1 > f < f2
   # per http://en.wikipedia.org/wiki/Nohup#Overcoming_hanging
   if [ "`command -v Xvfb`" ]; then
     debug Xvfb command found. starting w args: $NEWDISPLAY $SCREEN
-    nohup Xvfb $NEWDISPLAY $SCREEN > $LOGFILE 2> logxx < x &
+    nohup Xvfb $NEWDISPLAY $SCREEN > $LOGFILE_OUT 2> $LOGFILE_ERR < /dev/null &
   elif [ "`command -v Xvnc`" ]; then
     debug Xvnc command found. starting w args: $NEWDISPLAY $SCREEN
-    nohup Xvnc $NEWDISPLAY $SCREEN > $LOGFILE 2> logxx < x &
+    nohup Xvnc $NEWDISPLAY $SCREEN > $LOGFILE_OUT 2> $LOGFILE_ERR < /dev/null &
   fi
   start_result=1
 }
@@ -151,6 +155,8 @@ check_running()
     debug xvfb running;
     check_running_result_progname=Xvfb
     check_running_result_pid=$findpid_result
+  else
+    debug findpid Xvfb gave no result
   fi
 
   findpid Xvnc
@@ -158,7 +164,11 @@ check_running()
     debug xvnc running;
     check_running_result_progname=Xvnc
     check_running_result_pid=$findpid_result
+  else
+    debug findpid Xvnc gave no result
   fi
+
+  return
 }
 
 check_arguments()
@@ -193,11 +203,9 @@ main()
   if [ $start_result = "already_running" ]; then
     exit ;
   fi
-  echo "waiting..."
   sleep 1
-  echo "waiting..."
   check_running
-  if [ ! check_running_result_progname ]; then
+  if [ ! $check_running_result_progname ]; then
     echo Failed to start virtual framebuffer. Please see $LOGFILE
   else
     fbprog=$check_running_result_progname

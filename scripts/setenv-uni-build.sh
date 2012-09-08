@@ -1,17 +1,14 @@
 #
-# Setup environment variables for building OpenSCAD on Un*x-like systems
+# Setup environment variables for building OpenSCAD on Linux/BSD systems
 #
-# On ordinary linux, OpenSCAD will not require any of this.
-# But on several platforms, special settings are required.
+# Usage:
 #
-# This script also handles the case where one has to 'custom build'
-# the dependency libraries from source, and they have been installed
-# into BASEDIR ( by default, $HOME/openscad_deps )
+#  cd openscad
+#  . ./scripts/setenv-unibuild.sh                # standard build
+#  . ./scripts/setenv-unibuild.sh clang          # build with clang compiler
+#  . ./scripts/setenv-unibuild.sh BASEDIR=/path/ # set a custom BASEDIR
 #
-# run this file with '. ./scripts/setenv-unibuild.sh' every time you login
-# to a shell and want to build or run OpenSCAD
-#
-# to build with clang, run '. ./scripts/setenv-unibuild.sh clang'
+#  BASEDIR is used by ./scripts/uni-build-dependencies.sh
 #
 
 if [ `uname | grep FreeBSD` ]; then
@@ -81,7 +78,7 @@ done
 
 
 
-# default. always set these variables.
+# default. these variables are set for every linux/bsd system
 
 if [ ! $BASEDIR ]; then
   BASEDIR=$HOME/openscad_deps
