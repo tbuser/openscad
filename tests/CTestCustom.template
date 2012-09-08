@@ -6,7 +6,7 @@
 # As a template, this file is read inside of CMakeList.txt and certain
 # words (__word__) are replaced with the cmake build dir/etc, at the time that
 # cmake itself is run. Typically these are signified by two underscores (__)
-# before and after the word. 
+# before and after the word in smallcase. 
 #
 # The file then becomes CTestCustom.cmake inside the cmake build 
 # directory. It is 'run' at the time that ctest is run. 
@@ -24,13 +24,15 @@ if( __cmake_system_name__ MATCHES "Linux|BSD")
  else()
   message("X11 DISPLAY environment variable not found. Calling virtualfb.sh")
   execute_process(
-   COMMAND __virtualfb.sh__ start 
+   COMMAND __cmake_current_source_dir__/virtualfb.sh start 
    OUTPUT_VARIABLE SVFB_OUT)
   string(REGEX MATCH "DISPLAY=:[0-9.]*" VFB_DISPLAY_STR "${SVFB_OUT}")
   string(REGEX MATCH ":[0-9.]*" VFB_DISPLAY "${VFB_DISPLAY_STR}")
 
   if (debug_openscad_template)
     message("Output from virtualfb.sh script: ${SVFB_OUT}")
+  else()
+    message("Virtual framebuffer started with DISPLAY=${VFB_DISPLAY}")
   endif()
 
 
@@ -42,16 +44,16 @@ if( __cmake_system_name__ MATCHES "Linux|BSD")
   set(ENV{DISPLAY} "${VFB_DISPLAY}")
 
 
-  set(CTEST_CUSTOM_POST_TEST "__virtualfb.sh__ stop;")
+  set(CTEST_CUSTOM_POST_TEST "__cmake_current_source_dir__/virtualfb.sh stop;")
  endif()
 endif()
 
 
 # Part 1. Pretty Printing
 
-message("running 'opencsgtest --info' to generate __sysinfo.txt__")
-execute_process(COMMAND __wine__ __opencsgtest__ --info OUTPUT_FILE sysinfo.txt)
-set(CTEST_CUSTOM_POST_TEST ${CTEST_CUSTOM_POST_TEST} "__python__ __test_pretty_print.py__ --builddir=__BUILDDIR__")
+message("running 'opencsgtest --info' to generate sysinfo.txt")
+execute_process(COMMAND __wine__ __cmake_current_binary_dir__/opencsgtest --info OUTPUT_FILE sysinfo.txt)
+set(CTEST_CUSTOM_POST_TEST ${CTEST_CUSTOM_POST_TEST} "__python__ __cmake_current_source_dir__/test_pretty_print.py --builddir=__cmake_current_binary_dir__")
 
 if ( ${debug_openscad_template} )
   foreach(post_test ${CTEST_CUSTOM_POST_TEST} )

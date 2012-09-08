@@ -19,8 +19,8 @@
 #
 # Permission is granted to Marius Kintel and Clifford Wolf to change
 # this license for use in OpenSCAD or any other projects they are involved in.
-
-
+#
+#
 # Purpose:
 #  Used to start/stop a virtual framebuffer device on linux/bsd systems,
 #  For integration with Cmake's Ctest tool. 'stop' means kill all
@@ -39,12 +39,12 @@
 #  Try to be portable to linux/bsd systems. Mac + Win32 do not require a
 #  virtualfb so we don't have to work on them here. Use as few external
 #  tools as possible (grep, sed)
-
+#
 # Edit NEWDISPLAY as needed
 
 NEWDISPLAY=:5
 SCREEN='-screen 0 800x600x24'
-DEBUG=1 # set to 1 for debug, blank for normal
+DEBUG=  # set to 1 for debug, blank for normal
 LOGFILE=virtualfb.log
 
 print_usage()
