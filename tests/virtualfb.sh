@@ -21,25 +21,30 @@
 # this license for use in OpenSCAD or any other projects they are involved in.
 #
 # Purpose:
-#  Used to start/stop a virtual framebuffer device on linux/bsd systems
-#  'stop' means kill all Xvfb/Xvnc processes running under the user's uid
+#  Used to start/stop a virtual framebuffer device on linux/bsd systems,
+#  For integration with Cmake's Ctest tool. 'stop' means kill all
+#  Xvfb/Xvnc processes running under the user's uid
 #
-# Usage:
-#  virtualfb.sh start
-#  virtualfb.sh stop
+print_usage()
+{
+  echo "  virtualfb.sh start"
+  echo "  virtualfb.sh stop"
+}
 #
 # Output:
 #  In 'start' mode, the script should print DISPLAY=:x (x=a number)
 #  which will get scraped by the CTestCustom.template ctest script
 #
 # Design:
-#  use as few external tools as possible (grep, sed)
+#  Try to be portable to linux/bsd systems. Mac + Win32 do not require a
+#  virtualfb so we don't have to work on them here. Use as few external
+#  tools as possible (grep, sed)
 
 # Edit NEWDISPLAY as needed
 
 NEWDISPLAY=:5
 SCREEN='-screen 0 800x600x24'
-DEBUG= # set to 1 for debug
+DEBUG=1 # set to 1 for debug, blank for normal
 LOGFILE=virtualfb.log
 
 debug()
@@ -99,66 +104,99 @@ stop()
 start()
 {
   debug start called
+  start_result=
 
   find_display Xvfb
   if [ $find_display_result ]; then
     echo "Xvfb already running. DISPLAY=:"$find_display_result
-    exit
+    start_result="already_running"
+    return
   fi
 
   find_display Xvnc
   if [ $find_display_result ]; then
     echo "Xvnc already running. DISPLAY=:"$find_display_result
-    exit
+    start_result="already_running"
+    return
   fi
 
   debug "No Xvfb or Xvnc detected. Attempting to start"
   debug "Logging to $LOGFILE"
 
+  # To stop ctest from 'blocking' (hanging), we use 2>&1 > f < f2
+  # per http://en.wikipedia.org/wiki/Nohup#Overcoming_hanging
   if [ "`command -v Xvfb`" ]; then
     debug Xvfb command found. starting w args: $NEWDISPLAY $SCREEN
-    Xvfb $NEWDISPLAY $SCREEN &> $LOGFILE &
+    nohup Xvfb $NEWDISPLAY $SCREEN 2>&1 > $LOGFILE < /dev/null &
   elif [ "`command -v Xvnc`" ]; then
     debug Xvnc command found. starting w args: $NEWDISPLAY $SCREEN
-    Xvnc $NEWDISPLAY $SCREEN &> $LOGFILE &
+    nohup Xvnc $NEWDISPLAY $SCREEN 2>&1 > $LOGFILE < /dev/null &
   fi
+  start_result=1
 }
 
 check_running()
 {
-  check_running_result=
-  check_running_pid=
+  check_running_result_progname=
+  check_running_result_pid=
 
   findpid Xvfb
   if [ $findpid_result ] ; then
     debug xvfb running;
-    check_running_result=Xvfb
-    check_running_pid=$findpid_result
+    check_running_result_progname=Xvfb
+    check_running_result_pid=$findpid_result
   fi
 
   findpid Xvnc
   if [ $findpid_result ] ; then
     debug xvnc running;
-    check_running_result=Xvnc
-    check_running_pid=$findpid_result
+    check_running_result_progname=Xvnc
+    check_running_result_pid=$findpid_result
   fi
 }
 
-if [ $1 ]; then
-  if [ $1 = stop ]; then
-    stop
-    if [ ! $stop_result ]; then
-      echo Neither Xvnc nor Xvfb were found running.
-    fi
-    exit
+check_arguments()
+{
+  if [ ! $1 ]; then return; fi
+  if [ $1 ]; then
+    if [ $1 = "start" ]; then return; fi
+    if [ $1 = "stop" ]; then return; fi
   fi
-fi
+  echo Unknown option: $1. Usage:
+  print_usage
+  echo program stopped.
+  exit
+}
 
-start
-sleep 2
-check_running
-if [ ! check_running_result ]; then
-  echo Failed to start virtual framebuffer. Please see $LOGFILE
-else
-  echo "started "$check_running_result", pid "$check_running_pid", DISPLAY="$NEWDISPLAY", logfile "$LOGFILE
-fi
+
+main()
+{
+  check_arguments $1
+
+  if [ $1 ]; then
+    if [ $1 = stop ]; then
+      stop
+      if [ ! $stop_result ]; then
+        echo Neither Xvnc nor Xvfb were found running.
+      fi
+      exit
+    fi
+  fi
+
+  start
+  if [ $start_result = "already_running" ]; then
+    exit ;
+  fi
+  sleep 2
+  check_running
+  if [ ! check_running_result_progname ]; then
+    echo Failed to start virtual framebuffer. Please see $LOGFILE
+  else
+    fbprog=$check_running_result_progname
+    xpid=$check_running_result_pid
+    echo "started "$fbprog", pid "$xpid", DISPLAY="$NEWDISPLAY", logfile "$LOGFILE
+  fi
+}
+
+main $*
+
