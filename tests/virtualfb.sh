@@ -19,17 +19,17 @@
 #
 # Permission is granted to Marius Kintel and Clifford Wolf to change
 # this license for use in OpenSCAD or any other projects they are involved in.
-#
+
+
 # Purpose:
 #  Used to start/stop a virtual framebuffer device on linux/bsd systems,
 #  For integration with Cmake's Ctest tool. 'stop' means kill all
-#  Xvfb/Xvnc processes running under the user's uid
+#  Xvfb/Xvnc processes running under the user's uid, there is no
+#  mechanism in this particular design, as-is, to run multiple VFBs &
+#  Ctest under a single userid.
 #
-print_usage()
-{
-  echo "  virtualfb.sh start"
-  echo "  virtualfb.sh stop"
-}
+# Usage:
+#  See print_usage()
 #
 # Output:
 #  In 'start' mode, the script should print DISPLAY=:x (x=a number)
@@ -47,9 +47,15 @@ SCREEN='-screen 0 800x600x24'
 DEBUG=1 # set to 1 for debug, blank for normal
 LOGFILE=virtualfb.log
 
+print_usage()
+{
+  echo "  virtualfb.sh start"
+  echo "  virtualfb.sh stop"
+}
+
 debug()
 {
-  if [ $DEBUG ]; then echo $* ; fi
+  if [ $DEBUG ]; then echo virtualfb.sh: $* ; fi
 }
 
 find_display()
@@ -61,7 +67,7 @@ find_display()
 
 findpid()
 {
-  debug findpid called w arg $1
+  debug findpid called with arg $1
   findpid_result=
   if [ `uname | grep Linux` ]; then
     debug findpid: Linux detected
@@ -127,10 +133,10 @@ start()
   # per http://en.wikipedia.org/wiki/Nohup#Overcoming_hanging
   if [ "`command -v Xvfb`" ]; then
     debug Xvfb command found. starting w args: $NEWDISPLAY $SCREEN
-    nohup Xvfb $NEWDISPLAY $SCREEN 2>&1 > $LOGFILE < /dev/null &
+    nohup Xvfb $NEWDISPLAY $SCREEN > $LOGFILE 2> logxx < x &
   elif [ "`command -v Xvnc`" ]; then
     debug Xvnc command found. starting w args: $NEWDISPLAY $SCREEN
-    nohup Xvnc $NEWDISPLAY $SCREEN 2>&1 > $LOGFILE < /dev/null &
+    nohup Xvnc $NEWDISPLAY $SCREEN > $LOGFILE 2> logxx < x &
   fi
   start_result=1
 }
@@ -187,7 +193,9 @@ main()
   if [ $start_result = "already_running" ]; then
     exit ;
   fi
-  sleep 2
+  echo "waiting..."
+  sleep 1
+  echo "waiting..."
   check_running
   if [ ! check_running_result_progname ]; then
     echo Failed to start virtual framebuffer. Please see $LOGFILE
@@ -198,5 +206,5 @@ main()
   fi
 }
 
+debug calling main
 main $*
-
