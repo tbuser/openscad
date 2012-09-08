@@ -64,8 +64,19 @@ debug()
 find_display()
 {
   vfb_program=$1
-  find_display_result=`ps -fu$USER | grep $vfb_program | grep -v grep | \
-    grep -v sed | sed s/".*$1.*:"// | sed s/" .*"//`;
+  if [ `uname | grep Linux` ]; then
+    debug Linux detected
+    find_display_result="`ps -fu$USER | grep $vfb_program | grep -v grep | \
+      grep -v sed | sed s/".*$vfb_program.*:"// | sed s/" .*"//`"
+  elif [ `uname | grep BSD` ]; then
+    debug BSD detected
+    find_display_result="`ps | grep $vfb_program | grep -v grep | grep -v sed | \
+      grep -v sed | sed s/".*$vfb_program.*:"// | sed s/" .*"//`"
+  else
+    echo find display: unknown operating system
+    exit
+  fi
+  debug find_display_result: $find_display_result
 }
 
 findpid()
@@ -74,16 +85,17 @@ findpid()
   findpid_result=
   if [ `uname | grep Linux` ]; then
     debug findpid: Linux detected
-    findpid_result=`ps -fu$USER | grep $1 | grep -v grep | grep -v sed | \
-     sed s/"$USER *"// | sed s/" .*"//`
+    findpid_result="`ps -fu$USER | grep $1 | grep -v grep | grep -v sed | \
+     awk ' { print $1 } '`"
   elif [ `uname | grep BSD` ]; then
     debug findpid: BSD detected
-    findpid_result=`ps | grep $1 | grep -v grep | grep -v sed | \
-     sed s/"\([0-9 ]*\)"/\\1/ | sed s/" *"//`
+    findpid_result="`ps | grep $1 | grep -v grep | grep -v sed | \
+     awk ' { print $1 } '`"
   else
     echo findpid: unknown operating system
     exit
   fi
+  debug "findpid result" $findpid_result
   return
 }
 
@@ -210,7 +222,7 @@ main()
   else
     fbprog=$check_running_result_progname
     xpid=$check_running_result_pid
-    echo "started "$fbprog", pid "$xpid", DISPLAY="$NEWDISPLAY", logfile "$LOGFILE
+    echo "started "$fbprog", pid "$xpid", DISPLAY="$NEWDISPLAY", logs "$LOGFILE_OUT, $LOGFILE_ERR
   fi
 }
 
