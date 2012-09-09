@@ -195,23 +195,23 @@ build_cgal()
   echo "Building CGAL" $version "..."
   cd $BASEDIR/src
   rm -rf CGAL-$version
-  if [ ! -f CGAL-$version.tar.bz2 ]; then
+  if [ ! -f CGAL-$version.tar.gz ]; then
     if [ $version = 4.0.2 ]; then
-      curl -kO https://gforge.inria.fr/frs/download.php/31174/CGAL-$version.tar.bz2
+      curl -kO https://gforge.inria.fr/frs/download.php/31174/CGAL-$version.tar.gz
     elif [ $version = 4.0 ];  then
-      curl -kO https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.bz2
+      curl -kO https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.gz
     elif [ $version = 3.9 ];  then
-      curl -kO https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.bz2
+      curl -kO https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.gz
     elif [ $version = 3.8 ];  then
-      curl -kO https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.bz2
+      curl -kO https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.gz
     elif [ $version = 3.7 ];  then
-      curl -kO https://gforge.inria.fr/frs/download.php/27641/CGAL-$version.tar.bz2
+      curl -kO https://gforge.inria.fr/frs/download.php/27641/CGAL-$version.tar.gz
     else
       echo unknown CGAL version $version . please edit script
       exit
     fi
   fi
-  tar jxf CGAL-$version.tar.bz2
+  tar zxf CGAL-$version.tar.gz
   cd $BASEDIR/src/CGAL-$version
 
   if [ "`uname -a | grep NetBSD.*amd64`" ]; then
@@ -253,10 +253,9 @@ build_glew()
 
   # Fedora 64-bit
   if [ -e /usr/lib64 ]; then
-    if [ -e /usr/lib64/libXmu.so ]; then
-      echo "modifying glew makefile for 64 bit machine"
-      sed -ibak s/"\-lXmu"/"\-L\/usr\/lib64\/libXmu.so"/ config/Makefile.linux
-    fi
+    echo "modifying glew makefile for 64 bit machine"
+    if [ -e /usr/lib64/libXmu.so.6 ]; then ADD_SO=.6; else ADD_SO= ; fi
+    sed -ibak s/"\-lXmu"/"\-L\/usr\/lib64\/libXmu.so$ADD_SO"/ config/Makefile.linux
   fi
 
   MAKER=make
@@ -426,7 +425,7 @@ build_gmp 5.0.5
 build_mpfr 3.1.1
 build_boost 1.47.0
 # NB! For CGAL, also update the actual download URL in the function
-build_cgal 4.0.2
+build_cgal 3.9
 build_glew 1.8.0
 build_opencsg 1.3.2
 

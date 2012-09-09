@@ -77,6 +77,17 @@ for i in $*; do
 done
 
 
+if [ "`uname -a | grep -i linux.*ppc64`" ]; then
+  # LLVM/Gallium on PPC will segfault on OpenGL 
+  # https://bugs.freedesktop.org/show_bug.cgi?id=42540
+  GALLIUM_DRIVER=softpipe
+  DRAW_USE_LLVM=no
+  export GALLIUM_DRIVER
+  export DRAW_USE_LLVM
+  echo GALLIUM_DRIVER: $GALLIUM_DRIVER
+  echo DRAW_USE_LLVM: $DRAW_USE_LLVM
+fi
+
 
 # default. these variables are set for every linux/bsd system
 
