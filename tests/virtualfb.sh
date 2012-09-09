@@ -38,15 +38,17 @@
 #  which will get scraped by the CTestCustom.template ctest script
 #
 # Design:
-#  Try to be portable to linux/bsd systems. Mac + Win32 do not require a
-#  virtualfb so we don't have to work on them here. Use as few external
-#  tools as possible (grep, sed)
+#  Try to be portable to different shells and linux/bsd systems. This is 
+#  not needed on Mac & Win, they have alternate access for OpenGL.
+#
+# Bugs:
+#  Doesn't handle one user with multiple virtual fb's running
 #
 # Edit NEWDISPLAY as needed
 
 NEWDISPLAY=:5
 SCREEN='-screen 0 800x600x24'
-DEBUG=  # set to 1 for debug, blank for normal
+DEBUG=
 LOGFILE_ERR=virtualfb.err
 LOGFILE_OUT=virtualfb.out
 
@@ -61,6 +63,7 @@ debug()
   if [ $DEBUG ]; then echo virtualfb.sh: $* ; fi
 }
 
+# find DISPLAY of any virtual fb running under the currnet userid
 find_display()
 {
   vfb_program=$1
@@ -79,6 +82,7 @@ find_display()
   debug find_display_result: $find_display_result
 }
 
+# find pid of any virtual fb running under the currnet userid
 findpid()
 {
   debug findpid called with arg $1
@@ -86,7 +90,7 @@ findpid()
   if [ `uname | grep Linux` ]; then
     debug findpid: Linux detected
     findpid_result="`ps -fu$USER | grep $1 | grep -v grep | grep -v sed | \
-     awk ' { print $1 } '`"
+     awk ' { print $2 } '`"
   elif [ `uname | grep BSD` ]; then
     debug findpid: BSD detected
     findpid_result="`ps | grep $1 | grep -v grep | grep -v sed | \
@@ -99,6 +103,7 @@ findpid()
   return
 }
 
+# stop any virtual fb's running under the current userid
 stop_()
 {
   debug stop called
@@ -123,6 +128,7 @@ stop_()
   fi
 }
 
+# start a new virtual fb
 start_()
 {
   debug start called
@@ -142,7 +148,7 @@ start_()
     return
   fi
 
-  debug "No Xvfb or Xvnc detected. Attempting to start"
+  debug "No Xvfb or Xvnc detected running. Attempting to start"
   debug "Logging to $LOGFILE_OUT and $LOGFILE_ERR"
 
   # To stop ctest from 'blocking' (hanging), we use 2>&1 > f < f2
@@ -150,13 +156,19 @@ start_()
   if [ "`command -v Xvfb`" ]; then
     debug Xvfb command found. starting w args: $NEWDISPLAY $SCREEN
     nohup Xvfb $NEWDISPLAY $SCREEN > $LOGFILE_OUT 2> $LOGFILE_ERR < /dev/null &
+    start_result=1
   elif [ "`command -v Xvnc`" ]; then
     debug Xvnc command found. starting w args: $NEWDISPLAY $SCREEN
     nohup Xvnc $NEWDISPLAY $SCREEN > $LOGFILE_OUT 2> $LOGFILE_ERR < /dev/null &
+    start_result=1
+  else
+    echo "Could not find a virtual framebuffer program (looked for Xvfb & Xvnc)"
+    start_result=0
   fi
-  start_result=1
+  return
 }
 
+# check whether a virtual fb is running under the current userid
 check_running()
 {
   check_running_result_progname=
@@ -191,10 +203,9 @@ check_arguments()
     fi
   done
 
-  if [ $1 ]; then
-    if [ $1 = start ]; then return; fi
-    if [ $1 = stop ]; then return; fi
-  fi
+  if [ ! $1 ]; then return; fi
+  if [ $1 = start ]; then return; fi
+  if [ $1 = stop ]; then return; fi
 
   echo Unknown option: $1. Usage:
   print_usage
@@ -218,9 +229,8 @@ main()
   fi
 
   start_
-  if [ $start_result = "already_running" ]; then
-    exit ;
-  fi
+  if [ $start_result = "already_running" ]; then exit; fi
+  if [ $start_result = 0 ]; then exit; fi
   sleep 1
   check_running
   if [ ! $check_running_result_progname ]; then

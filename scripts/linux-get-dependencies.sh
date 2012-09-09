@@ -3,7 +3,7 @@
 if [ "`cat /etc/issue | grep -i 'Red Hat Enterprise'`" ]; then
   echo "Redhat Enterprise Linux detected"
   sudo yum install curl git qt-devel bison flex libXmu-devel \
-   ImageMagick xorg-x11-server-Xvfb
+   ImageMagick xorg-x11-server-Xvfb tigervnc-server
 
   if [ "`grep define.*__GNU_MP__.4 /usr/include/mp.h`" ]; then
     echo "GMP too old. Please try 'old linux' build (see README.md)"
