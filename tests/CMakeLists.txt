@@ -398,6 +398,16 @@ if (NOT SKIP_IMAGEMAGICK)
   else()
     message(FATAL_ERROR "Couldn't find imagemagick 'convert' program")
   endif()
+  message(STATUS "ImageMagick version: ${ImageMagick_VERSION_STRING}")
+  if ( "${ImageMagick_VERSION_STRING}" VERSION_LESS 6.5.9.4 )
+    message(STATUS "ImageMagick version less than 6.5.9.4, cannot use -morphology comparison")
+    if ("$ENV{COMPARATOR}" STREQUAL "")
+      message(STATUS "ImageMagick: Using older image comparison method")
+      set(COMPARATOR "old")
+    else()
+      message(STATUS "Deteced COMPARATOR set to $ENV{COMPARATOR}")
+    endif()
+  endif()
 endif()
 
 # Internal includes
@@ -637,12 +647,6 @@ function(get_test_fullname TESTCMD FILENAME FULLNAME)
   # Export to parent scope
   set(${FULLNAME} ${${FULLNAME}} PARENT_SCOPE)
 endfunction()
-
-# comparison method to use
-if (NOT $ENV{COMPARATOR} STREQUAL "")
-  set(COMPARATOR "$ENV{COMPARATOR}")
-  message(STATUS "ImageMagick method modified with COMPARATOR: " ${COMPARATOR})
-endif()
 
 #
 # This functions adds cmd-line tests given files.

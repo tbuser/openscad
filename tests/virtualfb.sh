@@ -43,6 +43,8 @@
 #
 # Bugs:
 #  Doesn't handle one user with multiple virtual fb's running
+#  Doesn't detect if DISPLAY env var is set but no X is setup on that DISPLAY
+#  Doesn't auto figure-out DISPLAY, always uses :5
 #
 # Edit NEWDISPLAY as needed
 
