@@ -1,26 +1,25 @@
 #!/bin/sh -e
-
 #
-# This script downloads, builds, and installs the main library 
-# dependencies needed by OpenSCAD into a path specified by the BASEDIR 
+# This script downloads, builds, and installs the main library
+# dependencies needed by OpenSCAD into a path specified by the BASEDIR
 # environment variable. This script works on Linux, BSD, and similar systems.
 #
 # This script must be run from the OpenSCAD source root directory
 #
-# Usage: 
+# Usage:
 #  uni-build-dependencies.sh
 #
 #  # build only CGAL
 #  uni-build-dependencies.sh cgal
 #
 #  # build only OpenCSG
-#  uni-build-dependencies.sh opencsg 
+#  uni-build-dependencies.sh opencsg
 #
 #
 # Prerequisites:
 #  wget or curl
 #  Qt4
-#  
+#
 # Notes:
 #  This is designed to be portable, with simple
 #  commands, and testing on the major BSDs + Linuxes
@@ -244,7 +243,7 @@ build_glew()
   version=$1
   echo "Building GLEW" $version "..."
   cd $BASEDIR/src
-  #rm -rf glew-$version
+  rm -rf glew-$version
   if [ ! -f glew-$version.tgz ]; then
     curl -LO http://downloads.sourceforge.net/project/glew/glew/$version/glew-$version.tgz
   fi
@@ -355,7 +354,7 @@ build_eigen()
   cd eigen-$version
   mkdir build
   cd build
-  cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR ..
+  cmake -DCMAKE_INSTALL_PREFIX=$DEPLOYDIR -DEIGEN_TEST_NO_OPENGL=1 ..
   make -j$NUMCPU
   make install
 }
