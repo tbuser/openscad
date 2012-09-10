@@ -423,9 +423,9 @@ fi
 build_eigen 3.1.1
 build_gmp 5.0.5
 build_mpfr 3.1.1
-build_boost 1.47.0
+build_boost 1.42.0
 # NB! For CGAL, also update the actual download URL in the function
-build_cgal 3.9
+build_cgal 3.8
 build_glew 1.8.0
 build_opencsg 1.3.2
 

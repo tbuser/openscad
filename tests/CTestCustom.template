@@ -39,11 +39,10 @@ if( __cmake_system_name__ MATCHES "Linux|BSD")
   endif()
 
 
-  # This is the heart of the mechanism by which ctest is able to take 
+  # This line is the heart of the mechanism by which ctest is able to take 
   # the DISPLAY setting of the Virtual Framebuffer it just started, and 
   # pass it on to its child processes (the tests from 
   # CTestTestfile.cmake in the build directory)
-
   set(ENV{DISPLAY} "${VFB_DISPLAY}")
 
 
