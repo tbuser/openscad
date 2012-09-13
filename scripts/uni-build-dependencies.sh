@@ -23,6 +23,19 @@
 # Notes:
 #  This is designed to be portable, with simple
 #  commands, and testing on the major BSDs + Linuxes
+#
+# To add
+#  test for ssl before building curl (its needed for some downloads)
+#  QT.
+#  X11 libs/headers
+#  test each library version. determine if we need it. build whats needed.
+#  yacc/bison, flex
+#
+#  call the dependency based a 'dependency build'
+#
+#  gcc 4.7 requires boost 1.48+. detect and fix.
+# http://stackoverflow.com/questions/8297652/error-boost-disable-threads
+
 
 printUsage()
 {
@@ -424,7 +437,7 @@ fi
 build_eigen 3.1.1
 build_gmp 5.0.5
 build_mpfr 3.1.1
-build_boost 1.47.0
+build_boost 1.50.0
 # NB! For CGAL, also update the actual download URL in the function
 build_cgal 4.0.2
 build_glew 1.8.0

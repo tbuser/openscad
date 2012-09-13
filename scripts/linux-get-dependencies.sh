@@ -41,10 +41,10 @@ if [ "`cat /etc/issue | grep -i 'Fedora'`" ]; then
   echo
 fi
 
+#debian 7
+# qt4-dev-tools libxmu-dev libxi-dev
 
-
-too_old_debian()
-{
+too_old_debian() {
   sudo apt-get install build-essential libqt4-dev libqt4-opengl-dev \
    libXi-dev libxmu-dev cmake bison flex git-core curl wget imagemagick
   echo
