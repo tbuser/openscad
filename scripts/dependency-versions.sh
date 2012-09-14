@@ -7,8 +7,12 @@
 # 'custom installed' dependencies created without the package system
 # are not considered here.
 #
+# usage
+#  dependency-versions.sh                # run
+#  dependency-versions.sh debug          # debug run
+#
 # design
-# correct output is more important than speed or elegance (in this script)
+#  speed and elegance have been traded-off for an attempt at correctness
 #
 
 DEBUG=
@@ -47,6 +51,7 @@ debian_dep_ver()
   pkgname=$1
   veri=none
   vera=none
+  ver=
 
   # translate pkgname to debian packagename
   set_default_package_map
@@ -71,11 +76,12 @@ debian_dep_ver()
 
   debug $pkgname ".deb name:" $debpkgname
   if [ ! "`command -v apt-cache`" ]; then
-    echo command apt-cache not found.
+    echo command apt-cache not found. cannot proceed.
     return
   fi
   if [ ! "`command -v dpkg`" ]; then
-    echo command dpkg not found.    return
+    echo command dpkg not found. cannot proceed.
+    return
   fi
 
   # Already installed
@@ -92,6 +98,7 @@ debian_dep_ver()
   fi
 
   # Available to be installed
+  ver=
   debug "test apt-cache on $debpkgname"
   # apt-cache show is flaky on older debian. dont run unless search is OK
   test_aptcache=`apt-cache search $debpkgname`
@@ -113,6 +120,7 @@ freebsd_dep_ver()
   pkgname=$1
   veri=none
   vera=unknown # freebsd can't determine remote package versions??
+  ver=
 
   set_default_package_map
   boost=boost-libs
@@ -127,7 +135,7 @@ freebsd_dep_ver()
 
   debug $pkgname". freebsd name:" $fbsd_pkgname
   if [ ! "`command -v pkg_info`" ]; then
-    echo command pkg_info not found.
+    echo command pkg_info not found. cannot proceed.
     return
   fi
   # examples of freebsd package names
@@ -136,7 +144,7 @@ freebsd_dep_ver()
   if [ "$test_pkginfo" ]; then
     debug $test_pkginfo
     ver=`echo $test_pkginfo | awk '{print $1}' | sed s/"[_,].*"//`
-    ver=`echo $veri | sed s/"$fbsd_pkgname"-//`
+    ver=`echo $ver | sed s/"$fbsd_pkgname"-//`
   fi
   if [ $pkgname = "gcc" ]; then
     ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
@@ -146,12 +154,76 @@ freebsd_dep_ver()
 }
 
 
+netbsd_dep_ver()
+{
+  netbsd_dep_ver_result=
+  pkgname=$1
+  veri=none
+  vera=none
+  ver=
+
+  # translate pkgname to netbsd packagename
+  set_default_package_map
+  imagemagick=ImageMagick
+  boost=boost-libs
+  python=python27
+  eigen=eigen
+  make=gmake
+  git=scmgit
+  netbsd_pkgname=`eval echo "$"$pkgname`
+
+  if [ ! $netbsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
+
+  debug $pkgname". netbsd name:" $netbsd_pkgname
+  if [ ! "`command -v pkgin`" ]; then
+    echo command pkgin not found. cannot proceed.
+    return
+  fi
+
+  # Installed
+  # examples of netbsd package names
+  # zsh-4.3.15nb1
+  test_pkgin=`pkgin list | grep $netbsd_pkgname`
+  if [ "$test_pkgin" ]; then
+    debug installed check - $test_pkgin
+    ver=`pkgin list $netbsd_pkgname | grep "$netbsd_pkgname" | tail -1`
+    debug strip 1 $ver
+    ver=`echo $ver | awk '{print $1}' | sed s/.*-// | sed s/nb[0-9]*//`
+    debug strip 2 $ver
+    if [ $ver ]; then veri=$ver; fi
+  fi
+  if [ $pkgname = "gcc" ]; then
+    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
+    if [ $ver ]; then veri=$ver; fi
+    vera=unknown
+  fi
+
+  # Available
+  ver=
+  test_pkgin=`pkgin pkg-descr $netbsd_pkgname 2>&1 | grep -i ^information`
+  if [ "$test_pkgin" ]; then
+    debug available check $test_pkgin
+    ver=`echo $test_pkgin | awk '{print $3}' | tail -1`
+    debug stripped $ver
+    ver=`basename $ver | sed s/"^.*-"// | sed s/://`
+    debug basename $ver
+    ver=`echo $ver | sed s/.tgz$// | sed s/.bz2$// | sed s/.xz$//`
+    ver=`echo $ver | sed s/nb[0-9]*//`
+    debug strip2 $ver
+  fi
+  if [ $ver ]; then vera=$ver; fi
+
+  netbsd_dep_ver_result="$veri $vera"
+}
+
+
 fedora_dep_ver()
 {
   fedora_dep_ver_result=
   pkgname=$1
   veri=none
   vera=unknown # fedora can't determine remote package versions??
+  ver=
 
   # translate pkgname to fedora packagename
   set_default_package_map
@@ -166,7 +238,7 @@ fedora_dep_ver()
 
   debug $pkgname". fedora name:" $fedora_pkgname
   if [ ! "`command -v yum`" ]; then
-    echo command yum not found.
+    echo command yum not found. cannot proceed.
     return
   fi
 
@@ -201,6 +273,9 @@ dep_ver()
   elif [ "`uname | grep FreeBSD`" ]; then
     freebsd_dep_ver $*
     dep_ver_result=$freebsd_dep_ver_result
+  elif [ "`uname | grep NetBSD`" ]; then
+    netbsd_dep_ver $*
+    dep_ver_result=$netbsd_dep_ver_result
   elif [ "`command -v apt-cache`" ]; then
     echo cant determine system type. assuming debian because apt-cache exists
     debian_dep_ver $*
