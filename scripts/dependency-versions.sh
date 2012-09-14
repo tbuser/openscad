@@ -14,21 +14,31 @@ debug()
   if [ $DEBUG ]; then echo dependency-versions.sh: $* ; fi
 }
 
+
 debian_dep_ver()
 {
   debian_dep_ver_result=
-  veri="none"
-  vera="none"
-  verh="none"
   pkgname=$1
+  veri=none
+  vera=none
 
   # translate pkgname to debian packagename
-  for pn in cgal boost mpfr gmp eigen opencsg qt4; do
+  for pn in cgal boost mpfr opencsg qt4; do
     if [ $pn = $pkgname ]; then debpkgname=lib$pkgname-dev; fi
   done
   for pn in bison flex imagemagick gcc cmake curl git; do
     if [ $pn = $pkgname ]; then debpkgname=$pkgname; fi
   done
+
+  # some packages have funny names.
+  if [ $pkgname = eigen ]; then
+    if [ "`apt-cache search libeigen3-dev`" ]; then debpkgname=libeigen3-dev ;fi
+    if [ "`apt-cache search libeigen2-dev`" ]; then debpkgname=libeigen2-dev ;fi
+  fi
+  if [ $pkgname = gmp ]; then
+    if [ "`apt-cache search libgmp3-dev`" ]; then debpkgname=libgmp3-dev ;fi
+    if [ "`apt-cache search libgmp-dev`" ]; then debpkgname=libgmp-dev ;fi
+  fi
 
   if [ ! $debpkgname ]; then echo "unknown package" $pkgname; return; fi
 
@@ -40,6 +50,7 @@ debian_dep_ver()
   if [ ! "`command -v dpkg`" ]; then
     echo command dpkg not found.    return
   fi
+
   # examples of debian version strings
   # cgal 4.0-4   gmp 2:5.0.5+dfsg  bison 1:2.5.dfsg-2.1 cmake 2.8.9~rc1
   debug "test dpkg on $debpkgname"
@@ -47,7 +58,7 @@ debian_dep_ver()
   if [ "$testdpkg" ]; then
     if [ ! "`echo $testdpkg | grep not.installed`" ]; then
       ver=`dpkg --status $debpkgname | grep ^Version: | awk ' { print $2 }'`
-      ver=`echo $ver | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
+      ver=`echo $ver | tail -1 | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
       veri=$ver
     fi
   fi
@@ -60,12 +71,11 @@ debian_dep_ver()
     test_aptcache=`apt-cache show $debpkgname`
     if [ ! "`echo $test_aptcache | grep -i no.packages`" ]; then
       ver=`apt-cache show $debpkgname | grep ^Version: | awk ' { print $2 }'`
-      ver=`echo $ver | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
+      ver=`echo $ver | tail -1 | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
       vera=$ver
     fi
   fi
 
-  debug vera: $vera veri: $veri
   debian_dep_ver_result="$veri $vera"
 }
 
