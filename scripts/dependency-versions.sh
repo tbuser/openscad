@@ -34,23 +34,37 @@ debian_dep_ver()
 
   pkgname=`eval echo '$'$1`
 
-  debug debian: $1: $pkgname
+  debug debian: $1 "->" $pkgname
   if [ ! "`command -v apt-cache`" ]; then
     echo command apt-cache not found.
     return
   fi
+  if [ ! "`command -v dpkg`" ]; then
+    echo command dpkg not found.    return
+  fi
   # examples of debian version strings
   # cgal 4.0-4   gmp 2:5.0.5+dfsg  bison 1:2.5.dfsg-2.1 cmake 2.8.9~rc1
+  debug "test dpkg on $pkgname"
   testdpkg=`dpkg --status $pkgname 2>&1`
-  if [ ! "`echo $testdpkg | grep dpkg-query`" ]; then
-    ver=`dpkg --status $pkgname | grep ^Version: | awk ' { print $2 }'`
-    ver=`echo $ver | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
-    veri=$ver
+  if [ "$testdpkg" ]; then
+    if [ ! "`echo $testdpkg | grep not.installed`" ]; then
+      ver=`dpkg --status $pkgname | grep ^Version: | awk ' { print $2 }'`
+      ver=`echo $ver | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
+      veri=$ver
+    fi
   fi
 
-  ver=`apt-cache show $pkgname | grep ^Version: | awk ' { print $2 }'`
-  ver=`echo $ver | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
-  if [ $ver ]; then vera=$ver ; fi
+  debug "test apt-cache on $pkgname"
+  # apt-cache show is flaky on older debian. dont run unless search is OK
+  test_aptcache=`apt-cache search $pkgname`
+  if [ "$test_aptcache" ]; then
+    test_aptcache=`apt-cache show $pkgname`
+    if [ ! "`echo $test_aptcache | grep -i no.packages`" ]; then
+      ver=`apt-cache show $pkgname | grep ^Version: | awk ' { print $2 }'`
+      ver=`echo $ver | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
+      vera=$ver
+    fi
+  fi
 
   debug vera: $vera veri: $veri
   debian_dep_ver_result="$veri $vera"
