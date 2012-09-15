@@ -119,38 +119,79 @@ freebsd_dep_ver()
   freebsd_dep_ver_result=
   pkgname=$1
   veri=none
-  vera=unknown # freebsd can't determine remote package versions??
+  vera=unknown # freebsd can't easily + reliably determine remote package versions
   ver=
 
+  # translate pkgname to freebsd packagename
   set_default_package_map
   boost=boost-libs
   eigen=eigen
   imagemagick=ImageMagick
   make=gmake
   qt4=qt4-corelib
-  # translate pkgname to freebsd packagename
-  fbsd_pkgname=`eval echo "$"$pkgname`
+  freebsd_pkgname=`eval echo "$"$pkgname`
 
-  if [ ! $fbsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
+  if [ ! $freebsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
 
-  debug $pkgname". freebsd name:" $fbsd_pkgname
+  debug $pkgname". freebsd name:" $freebsd_pkgname
   if [ ! "`command -v pkg_info`" ]; then
     echo command pkg_info not found. cannot proceed.
     return
   fi
   # examples of freebsd package names
   # python-2.7,2  cmake-2.8.6_1 boost-libs-1.45.0_1
-  test_pkginfo=`pkg_info | grep $fbsd_pkgname`
+  test_pkginfo=`pkg_info | grep $freebsd_pkgname`
   if [ "$test_pkginfo" ]; then
     debug $test_pkginfo
     ver=`echo $test_pkginfo | awk '{print $1}' | sed s/"[_,].*"//`
-    ver=`echo $ver | sed s/"$fbsd_pkgname"-//`
+    ver=`echo $ver | sed s/"$freebsd_pkgname"-//`
   fi
   if [ $pkgname = "gcc" ]; then
     ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
   fi
   if [ $ver ]; then veri=$ver; fi
   freebsd_dep_ver_result="$veri $vera"
+}
+
+openbsd_dep_ver()
+{
+  openbsd_dep_ver_result=
+  pkgname=$1
+  veri=none
+  vera=unknown # openbsd can't easily + reliably determine remote package versions
+  ver=
+
+  # translate pkgname to openbsd packagename
+  set_default_package_map
+  eigen=eigen2
+  imagemagick=ImageMagick
+  make=gmake
+  openbsd_pkgname=`eval echo "$"$pkgname`
+
+  if [ ! $openbsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
+
+  debug $pkgname". openbsd name:" $openbsd_pkgname
+  if [ ! "`command -v pkg_info`" ]; then
+    echo command pkg_info not found. cannot proceed.
+    return
+  fi
+
+  # Installed
+  # examples of openbsd package names
+  # python-2.7  cmake-2.8.6p2 boost-libs-1.45.0p0
+  test_pkginfo=`pkg_info -A | grep $openbsd_pkgname`
+  if [ "$test_pkginfo" ]; then
+    debug $test_pkginfo
+    ver=`echo $test_pkginfo | awk '{print $1}' `
+    ver=`echo $ver | sed s/"$openbsd_pkgname"-// | sed s/p[0-9]*//`
+    if [ $ver ]; then veri=$ver; fi
+  fi
+  if [ $pkgname = "gcc" ]; then
+    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
+    if [ $ver ]; then veri=$ver; fi
+  fi
+
+  openbsd_dep_ver_result="$veri $vera"
 }
 
 
@@ -201,6 +242,7 @@ netbsd_dep_ver()
   # Available
   ver=
   test_pkgin=`pkgin pkg-descr $netbsd_pkgname 2>&1 | grep -i ^information`
+  # make ftp://netbsd.org/etc/etc/etc/package-x.y.z.tgz into x.y.z
   if [ "$test_pkgin" ]; then
     debug available check $test_pkgin
     ver=`echo $test_pkgin | awk '{print $3}' | tail -1`
@@ -217,12 +259,13 @@ netbsd_dep_ver()
 }
 
 
+
 fedora_dep_ver()
 {
   fedora_dep_ver_result=
   pkgname=$1
   veri=none
-  vera=unknown # fedora can't determine remote package versions??
+  vera=unknown # fedora can't easily + reliably determine remote package versions
   ver=
 
   # translate pkgname to fedora packagename
@@ -276,6 +319,9 @@ dep_ver()
   elif [ "`uname | grep NetBSD`" ]; then
     netbsd_dep_ver $*
     dep_ver_result=$netbsd_dep_ver_result
+  elif [ "`uname | grep OpenBSD`" ]; then
+    openbsd_dep_ver $*
+    dep_ver_result=$openbsd_dep_ver_result
   elif [ "`command -v apt-cache`" ]; then
     echo cant determine system type. assuming debian because apt-cache exists
     debian_dep_ver $*
