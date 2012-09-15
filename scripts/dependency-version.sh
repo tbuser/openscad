@@ -3,7 +3,6 @@
 #
 # usage
 #  dependency-version.sh                # check version of all dependencies
-#  dependency-version.sh cgal           # check version of cgal library
 #  dependency-version.sh debug          # debug this script
 #
 # design
@@ -21,8 +20,8 @@ search_ver()
 {
   path=$1
   dep=$2
-  search_ver_result=
-  local ver=
+  search_ver_result=none
+  local ver=none
   if [ ! $1 ]; then return; fi
   if [ ! $2 ]; then return; fi
   debug search_ver: $path $dep
@@ -126,8 +125,13 @@ search_ver()
     if [ ! "`echo $ver | grep [0-9]`" ]; then return; fi
   fi
   if [ $dep = bash ] ; then
-    if [ ! -x $bpath/bash ]; then return; fi
-    ver=`$bpath/bash --version | grep bash | sed s/"[^0-9. ]"/" "/g|awk '{print $1}'`
+    # bash is a special case. normally we dont search elsewhere than the
+    # prefix $path given, but as a shell it can be in unusual places
+    if [ -x /bin/bash ]; then binbash=/bin/bash ;fi
+    if [ -x /usr/bin/bash ]; then binbash=/usr/bin/bash ;fi
+    if [ -x $bpath/bash ]; then binbash=$bpath/bash ;fi
+    if [ ! -x $binbash ]; then return; fi
+    ver=`$binbash --version | grep bash | sed s/"[^0-9. ]"/" "/g|awk '{print $1}'`
   fi
   if [ $dep = python ]; then
     if [ ! -x $bpath/python ]; then return; fi
@@ -135,6 +139,7 @@ search_ver()
   fi
   search_ver_result=$ver
 }
+
 
 dep_ver()
 {
