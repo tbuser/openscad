@@ -7,8 +7,10 @@
 #  dependency-version.sh qmake          # output for qmake & openscad.pro
 #
 # design
-#  code style is 'pretend its python'. avoid cleverness
-#  speed has been traded-off for an attempt at correctness
+#  code style is 'pretend its python'. functions return strings under
+#  the $function_name_result variable. attempt to avoid side effects,
+#  globals, @#*$()()@, non-portable shell code, etc. avoid attempts at
+#  optimizing for speed.
 #
 
 DEBUG=
@@ -178,7 +180,7 @@ get_readme_version()
 {
   if [ ! $1 ]; then return; fi
   depname=$1
-  tmp=
+  local tmp=
   debug $depname
   # example-->     * [CGAL (3.6 - 3.9)] (www.cgal.org)
   # steps: eliminate *, find left (, find -, make 'x' into 0, delete junk
@@ -195,40 +197,68 @@ get_readme_version()
   get_readme_version_result=$tmp
 }
 
-setup_readme_versions()
+set_min_versions()
 {
-  setup_readme_versions_result=
-  srvtmp=
+  set_min_versions_result=
+  smvtmp=
   for dep in $*; do
     get_readme_version $dep
-    srvtmp="$srvtmp $dep"_ver"=$get_readme_version_result"
+    smvtmp="$smvtmp $dep"_minver"=$get_readme_version_result"
   done
-  setup_readme_versions_result=$srvtmp
+  smvtmp="$smvtmp git_minver=1.5 curl_minver=6 make_minver=3"
+  set_min_versions_result=$smvtmp
+}
+
+vers_to_int()
+{
+  # change x.y.z.p into x0y0z0p
+  # it will work as long as the resulting int is less than 2.147 billion
+  # and y z and p are less than 99
+  # 1.2.3.4 into 1020304
+  # 1.11.0.12 into 1110012
+  # 2011.2.3 into 20110020300
+  # the resulting integer can be simply compared using -lt or -gt
+  if [ ! $1 ] ; then return ; fi
+  ver=$1
+  vtoi_test=`echo $ver | sed s/"[^0-9.]"//g`
+  if [ ! "$vtoi_test" = "$ver" ]; then
+    debug failure in version-to-integer conversion.
+    debug '"'$ver'"' has letters, etc in it
+    return;
+  fi
+  vers_to_int_result=`echo $ver | awk -F. '{print $1*1000000+$2*10000+$3*100+$4}'`
+}
+
+
+version_less_than()
+{
+  if [ ! $1 ]; then return; fi
+  if [ ! $2 ]; then return; fi
+  v1=$1
+  v2=$2
+  vers_to_int $v1
+  v1int=$vers_to_int_result
+  vers_to_int $v2
+  v2int=$vers_to_int_result
+  if [ $v1int -lt $v2int ]; then
+    debug "v1 < v2, v1int < v2int:" $v1, $v2, $v1int, $v2int
+    return 0
+  else
+    debug "v1 >= v2, v1int < v2int:" $v1, $v2, $v1int, $v2int
+    return 1
+  fi
 }
 
 checkargs $*
-
-README_DEPS="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc"
-README_DEPS="$README_DEPS imagemagick python bison flex"
-setup_readme_versions $README_DEPS
-eval $setup_readme_versions_result
-for dep in $README_DEPS; do
-  eval echo $dep "$"$dep"_ver"
+deps="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc imagemagick python bison flex git curl make"
+set_min_versions $deps
+eval $set_min_versions_result
+for dep in $deps; do
+  eval echo $dep "$"$dep"_minver" "$"$dep"_instver"
 done
-exit 0
 
-# Dependencies needed to build other dependencies
-
-DEPBUILD_DEPS="git curl make"
-imagemagick_ver=6.5
-git_ver=1.5
-curl_ver=6
-make=3 # must be gnu
-python=2.5
-
-# print a list of the dependency names, and their version
-# for 'qmake' mode, simply print the dependencies that are
-# no good.
+# print a list of the dependency names, and their version for 'qmake' 
+# mode, simply print the dependencies that are no good.
 for i in $libdeps $bindeps; do
   dep_ver $i
   if [ $QMAKE_MODE ]; then
