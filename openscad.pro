@@ -118,6 +118,10 @@ CONFIG(skip-version-check) {
   DEFINES += OPENSCAD_SKIP_VERSION_CHECK
 }
 
+# Dependency version checking
+
+$$checkdeps=system("./scripts/check-dependencies.sh")
+
 # Application configuration
 macx:CONFIG += mdi
 CONFIG += cgal

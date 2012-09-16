@@ -76,13 +76,15 @@ platform applicable to you below.
 ### Prerequisites
 
 To build OpenSCAD, you need some libraries and tools. The version
-numbers in brackets specify the versions which have been used for
-development. Other versions may or may not work as well.
+numbers in brackets specify the versions which have been regression
+tested. Other versions may or may not work as well, or at all.
 
-If you're using a newer version of Ubuntu, you can install these 
-libraries from aptitude. If you're using Mac, or an older Linux, there 
-are build scripts that download and compile the libraries from source. 
-Follow the instructions for the platform you're compiling on below.
+You can install these yourself, or you can use the convenience scripts 
+that will attempt to download and install them for you. If your system 
+doesn't have the proper version, or you lack root access, then the 
+script can automatically download updated dependency source code and 
+build it for you. Follow the instructions for the platform you're 
+compiling on below.
 
 * [Qt4 (4.4 - 4.7)](http://www.qt.nokia.com/)
 * [CGAL (3.6 - 4.0.2)](http://www.cgal.org/)
@@ -97,6 +99,11 @@ Follow the instructions for the platform you're compiling on below.
 * [Bison (2.4)](http://www.gnu.org/software/bison/)
 * [Flex (2.5.35)](http://flex.sourceforge.net/)
 
+Regression Tests
+
+* [ImageMagick (6.6?)](http://www.imagemagick.org)
+* [Python (2.5?)](http://www.python.org)
+
 ### Getting the source code
 
 Install git (http://git-scm.com/) onto your system. Then run a clone:
@@ -108,8 +115,7 @@ This will download the latest sources into a directory named 'openscad'.
 To pull the MCAD library (http://reprap.org/wiki/MCAD), do the following:
 
     cd openscad
-    git submodule init
-    git submodule update
+    git submodule update --init
 
 ### Building for Mac OS X
 
