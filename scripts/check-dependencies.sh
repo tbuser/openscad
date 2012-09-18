@@ -7,10 +7,10 @@
 #  dependency-version.sh qmake          # output for qmake & openscad.pro
 #
 # design
+#  goal is portability and lack of complicated regex.
 #  code style is 'pretend its python'. functions return strings under
-#  the $function_name_result variable. attempt to avoid side effects,
-#  globals, @#*$()()@, non-portable shell code, etc. avoid attempts at
-#  optimizing for speed.
+#  the $function_name_result variable. tmp variables are
+#  funcname_abbreviated_tmp. locals are not used for portability.
 #
 
 DEBUG=
@@ -51,7 +51,7 @@ search_ver()
     if [ ! -e $ipath/opencsg.h ]; then return; fi
     hex=`grep "define  *OPENCSG_VERSION  *[0-9x]*" $ipath/opencsg.h`
     if [ ! $hex ]; then hex="0x0000" ; fi  # before 1.3.2 there's no vers num
-    ver=$hex
+    ver=`echo $hex | sed s/"0x"//`
   fi
   if [ $dep = cgal ]; then
     if [ ! -e $ipath/CGAL/version.h ]; then return; fi
@@ -148,13 +148,15 @@ search_ver()
     if [ ! -x $bpath/python ]; then return; fi
     ver=`$bpath/python --version 2>&1 | awk '{print $2}'`
   fi
+  ver=`echo $ver | sed s/"^ *"//`  # trim leading/trailing spaces
+  ver=`echo $ver | sed s/" *$"//`
   search_ver_result=$ver
 }
 
 
-dep_ver()
+find_installed_version()
 {
-  dep_ver_result=
+  find_installed_version=
   if [ "`uname | grep Linux`" ]; then
     search_ver /usr $*
   elif [ "`uname | grep -i 'FreeBSD\|OpenBSD'`" ]; then
@@ -165,7 +167,20 @@ dep_ver()
     echo unknown system type. assuming prefix is /usr
     search_ver /usr $*
   fi
-  dep_ver_result=$search_ver_result
+  find_installed_version_result=$search_ver_result
+}
+
+find_installed_versions()
+{
+  fivdeps=$*
+  fivtmp=
+  find_installed_versions_result=
+  for fivdep in $fivdeps; do
+    find_installed_version $fivdep
+    debug find_installed_versions $fivdep $fivtmp
+    fivtmp="$fivtmp $dep"_instver"=$find_installed_version_result"
+  done
+  find_installed_versions_result=$fivtmp
 }
 
 checkargs()
@@ -182,7 +197,7 @@ get_readme_version()
   depname=$1
   local tmp=
   debug $depname
-  # example-->     * [CGAL (3.6 - 3.9)] (www.cgal.org)
+  # example-->     * [CGAL (3.6 - 3.9)] (www.cgal.org)  becomes 3.6
   # steps: eliminate *, find left (, find -, make 'x' into 0, delete junk
   tmp=`grep -i ".$depname.*([0-9]" README.md | sed s/"*"//`
   debug $tmp
@@ -223,14 +238,15 @@ vers_to_int()
   vtoi_test=`echo $ver | sed s/"[^0-9.]"//g`
   if [ ! "$vtoi_test" = "$ver" ]; then
     debug failure in version-to-integer conversion.
-    debug '"'$ver'"' has letters, etc in it
+    debug '"'$ver'"' has letters, etc in it. assuming '0'
+    vers_to_int_result=0
     return;
   fi
   vers_to_int_result=`echo $ver | awk -F. '{print $1*1000000+$2*10000+$3*100+$4}'`
 }
 
 
-version_less_than()
+version_less_than_or_equal()
 {
   if [ ! $1 ]; then return; fi
   if [ ! $2 ]; then return; fi
@@ -240,7 +256,7 @@ version_less_than()
   v1int=$vers_to_int_result
   vers_to_int $v2
   v2int=$vers_to_int_result
-  if [ $v1int -lt $v2int ]; then
+  if [ $v1int -le $v2int ]; then
     debug "v1 < v2, v1int < v2int:" $v1, $v2, $v1int, $v2int
     return 0
   else
@@ -249,24 +265,42 @@ version_less_than()
   fi
 }
 
+compare_versions()
+{
+  compare_versions_result=
+  cvtmp=
+  for cvdep in $*; do
+    cvminver=`eval echo "$"$cvdep"_minver"`
+    cvinstver=`eval echo "$"$cvdep"_instver"`
+    version_less_than_or_equal $cvminver $cvinstver
+    if [ $? = 0 ]; then
+      debug comp vers one: $cvtmp
+      cvtmp="$cvtmp $cvdep"_compared"=OK"
+    else
+      debug comp vers notone: $cvtmp
+      cvtmp="$cvtmp $cvdep"_compared"=NotOK"
+    fi
+  done
+  compare_versions_result=$cvtmp
+}
+
 checkargs $*
 deps="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc imagemagick python bison flex git curl make"
+#deps=opencsg
 set_min_versions $deps
 eval $set_min_versions_result
+find_installed_versions $deps
+eval $find_installed_versions_result
+compare_versions $deps
+eval $compare_versions_result
+format='{printf("%-12s%-12s%-12s%-12s\n",$1,$2,$3,$4)}'
+title="depname minimum installed status"
+echo $title | awk $format
 for dep in $deps; do
-  eval echo $dep "$"$dep"_minver" "$"$dep"_instver"
-done
-
-# print a list of the dependency names, and their version for 'qmake' 
-# mode, simply print the dependencies that are no good.
-for i in $libdeps $bindeps; do
-  dep_ver $i
-  if [ $QMAKE_MODE ]; then
-    if [ $dep_ver_result = unknown ]; then echo $i; fi
-    if [ $dep_ver_result = none ]; then echo $i; fi
-  else
-    echo $i $dep_ver_result
-  fi
+  minver=`eval echo "$"$dep"_minver"`
+  instver=`eval echo "$"$dep"_instver"`
+  compared=`eval echo "$"$dep"_compared"`
+  echo $dep $minver $instver $compared | awk $format
 done
 
 exit 0
