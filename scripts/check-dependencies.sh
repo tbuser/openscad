@@ -222,6 +222,7 @@ set_min_versions()
   done
   smvtmp="$smvtmp git_minver=1.5 curl_minver=6 make_minver=3"
   set_min_versions_result=$smvtmp
+  smvtmp=
 }
 
 vers_to_int()
@@ -234,15 +235,15 @@ vers_to_int()
   # 2011.2.3 into 20110020300
   # the resulting integer can be simply compared using -lt or -gt
   if [ ! $1 ] ; then return ; fi
-  ver=$1
-  vtoi_test=`echo $ver | sed s/"[^0-9.]"//g`
-  if [ ! "$vtoi_test" = "$ver" ]; then
+  vtoi_ver=$1
+  vtoi_test=`echo $vtoi_ver | sed s/"[^0-9.]"//g`
+  if [ ! "$vtoi_test" = "$vtoi_ver" ]; then
     debug failure in version-to-integer conversion.
-    debug '"'$ver'"' has letters, etc in it. assuming '0'
-    vers_to_int_result=0
-    return;
+    debug '"'$vtoi_ver'"' has letters, etc in it. setting to 0
+    vtoi_ver="0"
   fi
-  vers_to_int_result=`echo $ver | awk -F. '{print $1*1000000+$2*10000+$3*100+$4}'`
+  vers_to_int_result=`echo $vtoi_ver | awk -F. '{print $1*1000000+$2*10000+$3*100+$4}'`
+  vtoi_ver=
 }
 
 
@@ -263,6 +264,10 @@ version_less_than_or_equal()
     debug "v1 >= v2, v1int < v2int:" $v1, $v2, $v1int, $v2int
     return 1
   fi
+  v1=
+  v2=
+  v1int=
+  v2int=
 }
 
 compare_versions()
@@ -282,27 +287,54 @@ compare_versions()
     fi
   done
   compare_versions_result=$cvtmp
+  cvtmp=
 }
+
+
+pretty_print()
+{
+  ppdeps=$*
+  brightred="\033[1;31m"
+  red="\033[0;31m"
+  brown="\033[0;33m"
+  yellow="\033[1;33m"
+  white="\033[1;37m"
+  purple="\033[1;35m"
+  green="\033[0;32m"
+  cyan="\033[0;36m"
+  gray="\033[0;37m"
+  nocolor="\033[0m"
+  str="%s%-12s"
+  format='{printf("'$str$str$str$str$nocolor'\n",$1,$2,$3,$4,$5,$6,$7,$8)}'
+  title="$gray depname $gray minimum $gray installed $gray status"
+  echo -e $title | awk $format
+  for ppdep in $ppdeps; do
+    minver=`eval echo "$"$ppdep"_minver"`
+    instver=`eval echo "$"$ppdep"_instver"`
+    compared=`eval echo "$"$ppdep"_compared"`
+    if [ $compared = "NotOK" ]; then
+      cmpcolor=$purple;
+      ivcolor=$red;
+    else
+      cmpcolor=$green;
+      ivcolor=$gray;
+    fi
+    echo -e $cyan $ppdep $gray $minver $ivcolor $instver $cmpcolor $compared | awk $format
+  done
+}
+
 
 checkargs $*
 deps="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc imagemagick python bison flex git curl make"
 #deps=opencsg
+#deps=glew
 set_min_versions $deps
 eval $set_min_versions_result
 find_installed_versions $deps
 eval $find_installed_versions_result
 compare_versions $deps
 eval $compare_versions_result
-format='{printf("%-12s%-12s%-12s%-12s\n",$1,$2,$3,$4)}'
-title="depname minimum installed status"
-echo $title | awk $format
-for dep in $deps; do
-  minver=`eval echo "$"$dep"_minver"`
-  instver=`eval echo "$"$dep"_instver"`
-  compared=`eval echo "$"$dep"_compared"`
-  echo $dep $minver $instver $compared | awk $format
-done
-
+pretty_print $deps
 exit 0
 
 
