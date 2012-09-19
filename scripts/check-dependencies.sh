@@ -12,7 +12,9 @@
 #  the $function_name_result variable. tmp variables are
 #  funcname_abbreviated_tmp. locals are not used for portability.
 #
-
+# more todo:
+#  look in /usr and /usr/local on linux
+#
 DEBUG=
 QMAKE_MODE=
 
@@ -49,9 +51,15 @@ search_ver()
   fi
   if [ $dep = opencsg ]; then
     if [ ! -e $ipath/opencsg.h ]; then return; fi
+    # OpenCSG version is a hex number, 0x0xyz where x=maj, y=min, z=patch
+    # So we convert the hex to "x.y.z" format.
+    # Note that before 1.3.2 there's no version number at all.
     hex=`grep "define  *OPENCSG_VERSION  *[0-9x]*" $ipath/opencsg.h`
-    if [ ! $hex ]; then hex="0x0000" ; fi  # before 1.3.2 there's no vers num
-    ver=`echo $hex | sed s/"0x"//`
+    if [ ! "$hex" ]; then hex="0x0000" ; fi
+    ver=`echo $hex | sed s/"[^0-9x.]"//g | sed s/"0x"// | sed s/"^0*"//` # de-hex
+    debug parse opencsg - removed leading 0x0. $ver
+    ver=`echo $ver | awk 'BEGIN{FS=""}{for(i=1;i<=NF;i++) printf($i".")}' | sed s/"\.$"//`
+    debug parse opencsg - inserted dots. $ver
   fi
   if [ $dep = cgal ]; then
     if [ ! -e $ipath/CGAL/version.h ]; then return; fi
