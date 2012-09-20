@@ -1,5 +1,6 @@
-# Determine which versions of dependency tools and libraries are available
-# on the system.
+# Determine which versions of dependency tools and libraries are
+# available on the system. This helps the build-dependencies script
+# to build only what's needed.
 #
 # usage
 #  dependency-version.sh                # check version of all dependencies
@@ -12,6 +13,14 @@
 #  the $function_name_result variable. tmp variables are
 #  funcname_abbreviated_tmp. locals are not used for portability.
 #
+# todo
+#  refactor main loop.
+#  look in /usr/local/ on linux
+#  if /usr/ and /usr/local/ on linux both hit, throw an error
+#  fallback- pkgconfig --exists, then --modversion
+#  fallback2 - pkg manager
+#  todo - use OPENSCAD_LIBRARIES ???
+#  - print location found, how found???
 
 DEBUG=
 QMAKE_MODE=
@@ -306,7 +315,7 @@ pretty_print()
   nocolor="\033[0m"
   str="%s%-12s"
   format='{printf("'$str$str$str$str$nocolor'\n",$1,$2,$3,$4,$5,$6,$7,$8)}'
-  title="$gray depname $gray minimum $gray installed $gray status"
+  title="$gray depname $gray minimum $gray installed $gray OKness"
   echo -e $title | awk $format
   for ppdep in $ppdeps; do
     minver=`eval echo "$"$ppdep"_minver"`
@@ -314,7 +323,7 @@ pretty_print()
     compared=`eval echo "$"$ppdep"_compared"`
     if [ $compared = "NotOK" ]; then
       cmpcolor=$purple;
-      ivcolor=$red;
+      ivcolor=$purple;
     else
       cmpcolor=$green;
       ivcolor=$gray;
