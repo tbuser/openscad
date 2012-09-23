@@ -34,184 +34,197 @@ debug()
   if [ $DEBUG ]; then echo dependency-versions.sh: $* ; fi
 }
 
-search_ver()
+
+find_syspath()
 {
-  path=$1
-  dep=$2
-  search_ver_result=none
-  local ver=none
-  if [ ! $1 ]; then return; fi
-  if [ ! $2 ]; then return; fi
-  debug search_ver: $path $dep
-
-  # header searches
-  ipath=$path/include
-  if [ $dep = eigen ]; then
-    debug eigen
-    eigpath=
-    eig3path=$ipath/eigen3/Eigen/src/Core/util/Macros.h
-    eig2path=$ipath/eigen2/Eigen/src/Core/util/Macros.h
-    if [ -e $eig3path ]; then eigpath=$eig3path; fi
-    if [ -e $eig2path ]; then eigpath=$eig2path; fi
-    debug $eig2path
-    if [ ! $eigpath ]; then return; fi
-    wrld=`grep "define  *EIGEN_WORLD_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
-    maj=`grep "define  *EIGEN_MAJOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
-    min=`grep "define  *EIGEN_MINOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
-    ver="$wrld.$maj.$min"
-  fi
-  if [ $dep = opencsg ]; then
-    if [ ! -e $ipath/opencsg.h ]; then return; fi
-    # OpenCSG version is a hex number, 0x0xyz where x=maj, y=min, z=patch
-    # So we convert the hex to "x.y.z" format.
-    # Note that before 1.3.2 there's no version number at all.
-    hex=`grep "define  *OPENCSG_VERSION  *[0-9x]*" $ipath/opencsg.h`
-    if [ ! "$hex" ]; then
-      ver="0.0" ;
-    else
-      ver=`echo $hex | sed s/"[^0-9x.]"//g | sed s/"0x"// | sed s/"^0*"//` # de-hex
-      debug parse opencsg - removed leading 0x0. $ver
-      ver=`echo $ver | awk 'BEGIN{FS=""}{for(i=1;i<=NF;i++) printf($i".")}' | sed s/"\.$"//`
-      debug parse opencsg - inserted dots. $ver
-    fi
-  fi
-  if [ $dep = cgal ]; then
-    if [ ! -e $ipath/CGAL/version.h ]; then return; fi
-    ver=`grep "define  *CGAL_VERSION  *[0-9.]*" $ipath/CGAL/version.h | awk '{print $3}'`
-  fi
-  if [ $dep = boost ]; then
-    if [ ! -e $ipath/boost/version.hpp ]; then return; fi
-    ver=`grep 'define  *BOOST_LIB_VERSION *[0-9_"]*' $ipath/boost/version.hpp | awk '{print $3}'`
-    ver=`echo $ver | sed s/'"'//g | sed s/'_'/'.'/g`
-  fi
-  if [ $dep = mpfr ]; then
-    mpfrpath=$ipath/mpfr.h
-    if [ ! -e $mpfrpath ]; then return; fi
-    ver=`grep 'define  *MPFR_VERSION_STRING  *' $mpfrpath | awk '{print $3}'`
-    ver=`echo $ver | sed s/"-.*"// | sed s/'"'//`
-  fi
-  if [ $dep = gmp ]; then
-    # on some systems you have VERSION in gmp-$arch.h not gmp.h. use gmp*.h
-    gmppaths=`ls $ipath | grep ^gmp`
-    if [ ! "$gmppaths" ]; then return; fi
-    for gmpfile in $gmppaths; do
-      gmppath=$ipath/$gmpfile
-      if [ "`grep __GNU_MP_VERSION $gmppath`" ]; then
-        gmpmaj=`grep "define  *__GNU_MP_VERSION  *[0-9]*" $gmppath | awk '{print $3}'`
-        gmpmin=`grep "define  *__GNU_MP_VERSION_MINOR  *[0-9]*" $gmppath | awk '{print $3}'`
-        gmppat=`grep "define  *__GNU_MP_VERSION_PATCHLEVEL  *[0-9]*" $gmppath | awk '{print $3}'`
-      fi
-    done
-    ver="$gmpmaj.$gmpmin.$gmppat"
-  fi
-  if [ $dep = qt4 ]; then
-    qt4path=$ipath/qt4/QtCore/qglobal.h
-    if [ ! -e $qt4path ]; then return; fi
-    ver=`grep 'define  *QT_VERSION_STR  *' $qt4path | awk '{print $3}'`
-    ver=`echo $ver | sed s/'"'//g`
-  fi
-  if [ $dep = glew ]; then
-    ver=unknown # glew has no traditional version numbers
-  fi
-
-  # program searches
-  bpath=$path/bin
-  if [ $dep = imagemagick ]; then
-    if [ ! -x $bpath/convert ]; then return; fi
-    ver=`$bpath/convert --version | grep -i version`
-    ver=`echo $ver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
-  fi
-  if [ $dep = flex ]; then
-    flexbin=$bpath/flex
-    if [ -x $bpath/gflex ]; then flexbin=$bpath/gflex; fi # openbsd
-    if [ ! -x $flexbin ]; then return ; fi
-    ver=`$flexbin --version | sed s/"[^0-9.]"/" "/g`
-  fi
-  if [ $dep = bison ]; then
-    if [ ! -x $bpath/bison ]; then return ; fi
-    ver=`$bpath/bison --version | grep bison | sed s/"[^0-9.]"/" "/g`
-  fi
-  if [ $dep = gcc ]; then
-    bingcc=$bpath/gcc
-    if [ ! -x $bpath/gcc ]; then bingcc=gcc; fi
-    if [ ! "`$bingcc --version`" ]; then return; fi
-    ver=`$bingcc --version| grep -i gcc`
-    ver=`echo $ver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
-  fi
-  if [ $dep = git ]; then
-    if [ ! -x $bpath/git ]; then return ; fi
-    ver=`$bpath/git --version | grep git | sed s/"[^0-9.]"/" "/g`
-  fi
-  if [ $dep = curl ]; then
-    if [ ! -x $bpath/curl ]; then return; fi
-    ver=`$bpath/curl --version | grep curl | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
-  fi
-  if [ $dep = cmake ]; then
-    if [ ! -x $bpath/cmake ]; then return ; fi
-    ver=`$bpath/cmake --version | grep cmake | sed s/"[^0-9.]"/" "/g`
-  fi
-  if [ $dep = make ]; then
-    binmake=$bpath/make
-    if [ -x $bpath/gmake ]; then binmake=$bpath/gmake ;fi
-    if [ ! -x $binmake ]; then return ;fi
-    ver=`$binmake --version 2>&1 | grep -i 'gnu make' | sed s/"[^0-9.]"/" "/g`
-    if [ ! "`echo $ver | grep [0-9]`" ]; then return; fi
-  fi
-  if [ $dep = bash ] ; then
-    # bash is a special case. normally we dont search elsewhere than the
-    # prefix $path given, but as a shell it can be in unusual places
-    if [ -x /bin/bash ]; then binbash=/bin/bash ;fi
-    if [ -x /usr/bin/bash ]; then binbash=/usr/bin/bash ;fi
-    if [ -x $bpath/bash ]; then binbash=$bpath/bash ;fi
-    if [ ! -x $binbash ]; then return; fi
-    ver=`$binbash --version | grep bash | sed s/"[^0-9. ]"/" "/g|awk '{print $1}'`
-  fi
-  if [ $dep = python ]; then
-    if [ ! -x $bpath/python ]; then return; fi
-    ver=`$bpath/python --version 2>&1 | awk '{print $2}'`
-  fi
-  ver=`echo $ver | sed s/"^ *"//`  # trim leading/trailing spaces
-  ver=`echo $ver | sed s/" *$"//`
-  search_ver_result=$ver
-}
-
-
-find_installed_version()
-{
-  find_installed_version=
+  sptmp=
+  syspath=
   if [ "`uname | grep Linux`" ]; then
-    search_ver /usr $*
+    sptmp="/usr"
   elif [ "`uname | grep -i 'FreeBSD\|OpenBSD'`" ]; then
-    search_ver /usr/local $*
+    sptmp="/usr/local"
   elif [ "`uname | grep -i NetBSD`" ]; then
-    search_ver /usr/pkg $*
+    sptmp="/usr/pkg"
   else
     echo unknown system type. assuming prefix is /usr
-    search_ver /usr $*
+    sptmp="/usr"
   fi
-  find_installed_version_result=$search_ver_result
+  find_syspath_result=$sptmp
 }
 
-find_installed_versions()
+eigen_sysver()
 {
-  fivdeps=$*
-  fivtmp=
-  find_installed_versions_result=
-  for fivdep in $fivdeps; do
-    find_installed_version $fivdep
-    debug find_installed_versions $fivdep $fivtmp
-    fivtmp="$fivtmp $dep"_instver"=$find_installed_version_result"
-  done
-  find_installed_versions_result=$fivtmp
+  debug eigen
+  eigpath=
+  eig3path=$syspath/eigen3/Eigen/src/Core/util/Macros.h
+  eig2path=$syspath/eigen2/Eigen/src/Core/util/Macros.h
+  if [ -e $eig3path ]; then eigpath=$eig3path; fi
+  if [ -e $eig2path ]; then eigpath=$eig2path; fi
+  debug $eig2path
+  if [ ! $eigpath ]; then return; fi
+  wrld=`grep "define  *EIGEN_WORLD_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
+  maj=`grep "define  *EIGEN_MAJOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
+  min=`grep "define  *EIGEN_MINOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
+  eigen_sysver_result="$wrld.$maj.$min"
 }
 
-checkargs()
+opencsg_sysver()
 {
-  for i in $*; do
-    if [ $i = "debug" ]; then DEBUG=1 ; fi
-    if [ $i = "qmake" ]; then QMAKE_MODE=1 ; fi
-  done
+  debug opencsg_sysver
+  if [ ! -e $syspath/include/opencsg.h ]; then return; fi
+  # OpenCSG version is a hex number, 0x0xyz where x=maj, y=min, z=patch
+  # So we convert the hex to "x.y.z" format.
+  # Note that before 1.3.2 there's no version number at all.
+  hex=`grep "define  *OPENCSG_VERSION  *[0-9x]*" $syspath/include/opencsg.h`
+  if [ ! "$hex" ]; then
+    ocver="0.0" ;
+  else
+    ocver=`echo $hex | sed s/"[^0-9x.]"//g | sed s/"0x"// | sed s/"^0*"//` # de-hex
+    debug parse opencsg - removed leading 0x0. $ver
+    ocver=`echo $ver | awk 'BEGIN{FS=""}{for(i=1;i<=NF;i++) printf($i".")}' | sed s/"\.$"//`
+    debug parse opencsg - inserted dots. $ver
+  fi
+  opencsg_sysver_result=$ocver
 }
+
+cgal_sysver()
+{
+  if [ ! -e $syspath/include/CGAL/version.h ]; then return; fi
+  cgal_sysver_result=`grep "define  *CGAL_VERSION  *[0-9.]*" $syspath/CGAL/version.h | awk '{print $3}'`
+}
+
+boost_sysver()
+{
+  if [ ! -e $syspath/include/boost/version.hpp ]; then return; fi
+  bsver=`grep 'define  *BOOST_LIB_VERSION *[0-9_"]*' $syspath/include/boost/version.hpp | awk '{print $3}'`
+  bsver=`echo $ver | sed s/'"'//g | sed s/'_'/'.'/g`
+  boost_sysver_result=$bsver
+}
+
+mpfr_sysver()
+{
+  mpfrpath=$syspath/include/mpfr.h
+  if [ ! -e $mpfrpath ]; then return; fi
+  mpfrsver=`grep 'define  *MPFR_VERSION_STRING  *' $mpfrpath | awk '{print $3}'`
+  mpfrsver=`echo $mpfrsver | sed s/"-.*"// | sed s/'"'//`
+  mpfr_sysver_result=$mpfrver
+}
+
+gmp_sysver()
+{
+  # on some systems you have VERSION in gmp-$arch.h not gmp.h. use gmp*.h
+  gmppaths=`ls $syspath/include | grep ^gmp`
+  if [ ! "$gmppaths" ]; then return; fi
+  for gmpfile in $gmppaths; do
+    gmppath=$syspath/include/$gmpfile
+    if [ "`grep __GNU_MP_VERSION $gmppath`" ]; then
+      gmpmaj=`grep "define  *__GNU_MP_VERSION  *[0-9]*" $gmppath | awk '{print $3}'`
+      gmpmin=`grep "define  *__GNU_MP_VERSION_MINOR  *[0-9]*" $gmppath | awk '{print $3}'`
+      gmppat=`grep "define  *__GNU_MP_VERSION_PATCHLEVEL  *[0-9]*" $gmppath | awk '{print $3}'`
+    fi
+  done
+  ver="$gmpmaj.$gmpmin.$gmppat"
+}
+
+qt4_sysver()
+{
+  qt4path=$syspath/include/qt4/QtCore/qglobal.h
+  if [ ! -e $qt4path ]; then return; fi
+  ver=`grep 'define  *QT_VERSION_STR  *' $qt4path | awk '{print $3}'`
+  ver=`echo $ver | sed s/'"'//g`
+}
+
+glew_sysver()
+{
+  ver=unknown # glew has no traditional version numbers
+}
+
+imagemagick_sysver()
+{
+  if [ ! -x $syspath/bin/convert ]; then return; fi
+  ver=`$syspath/bin/convert --version | grep -i version`
+  ver=`echo $ver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
+}
+
+flex_sysver()
+{
+  flexbin=$syspath/bin/flex
+  if [ -x $syspath/bin/gflex ]; then flexbin=$syspath/bin/gflex; fi # openbsd
+  if [ ! -x $flexbin ]; then return ; fi
+  ver=`$flexbin --version | sed s/"[^0-9.]"/" "/g`
+}
+
+bison_sysver()
+{
+  if [ ! -x $syspath/bin/bison ]; then return ; fi
+  ver=`$syspath/bin/bison --version | grep bison | sed s/"[^0-9.]"/" "/g`
+}
+
+gcc_sysver()
+{
+  bingcc=$syspath/bin/gcc
+  if [ ! -x $syspath/bin/gcc ]; then bingcc=gcc; fi
+  if [ ! "`$bingcc --version`" ]; then return; fi
+  ver=`$bingcc --version| grep -i gcc`
+  ver=`echo $ver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
+}
+
+git_sysver()
+{
+  if [ ! -x $syspath/bin/git ]; then return ; fi
+  ver=`$syspath/bin/git --version | grep git | sed s/"[^0-9.]"/" "/g`
+}
+
+curl_sysver()
+{
+  if [ ! -x $syspath/bin/curl ]; then return; fi
+  ver=`$syspath/bin/curl --version | grep curl | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
+}
+
+cmake_sysver()
+{
+  if [ ! -x $syspath/bin/cmake ]; then return ; fi
+  ver=`$syspath/bin/cmake --version | grep cmake | sed s/"[^0-9.]"/" "/g`
+}
+
+make_sysver()
+{
+  binmake=$syspath/bin/make
+  if [ -x $syspath/bin/gmake ]; then binmake=$syspath/bin/gmake ;fi
+  if [ ! -x $binmake ]; then return ;fi
+  ver=`$binmake --version 2>&1 | grep -i 'gnu make' | sed s/"[^0-9.]"/" "/g`
+  if [ ! "`echo $ver | grep [0-9]`" ]; then return; fi
+}
+
+bash_sysver()
+{
+  if [ -x /bin/bash ]; then binbash=/bin/bash ;fi
+  if [ -x /usr/bin/bash ]; then binbash=/usr/bin/bash ;fi
+  if [ -x $syspath/bin/bash ]; then binbash=$syspath/bin/bash ;fi
+  if [ ! -x $binbash ]; then return; fi
+  ver=`$binbash --version | grep bash | sed s/"[^0-9. ]"/" "/g|awk '{print $1}'`
+}
+
+python_sysver()
+{
+  if [ ! -x $syspath/bin/python ]; then return; fi
+  ver=`$syspath/bin/python --version 2>&1 | awk '{print $2}'`
+  python_sysver=$ver
+}
+
+find_sys_version()
+{
+  debug find_sys_version
+  dep=$1
+  find_syspath
+  syspath=$find_syspath_result
+  eval $dep"_sysver" $syspath
+  find_sys_version_result=`eval echo "$"$dep"_sysver_result"`
+}
+
+
+
+
 
 get_readme_version()
 {
@@ -234,17 +247,19 @@ get_readme_version()
   get_readme_version_result=$tmp
 }
 
-set_min_versions()
+
+find_min_version()
 {
-  set_min_versions_result=
-  smvtmp=
-  for dep in $*; do
-    get_readme_version $dep
-    smvtmp="$smvtmp $dep"_minver"=$get_readme_version_result"
-  done
-  smvtmp="$smvtmp git_minver=1.5 curl_minver=6 make_minver=3"
-  set_min_versions_result=$smvtmp
-  smvtmp=
+  find_min_version_result=
+  fmvtmp=
+  if [ ! $1 ] ; then return; fi
+  fmvdep=$1
+  get_readme_version $fmvdep
+  fmvtmp=$get_readme_version_result
+  if [ $fmvdep = "git" ]; then $fmvtmp=1.5 ; fi
+  if [ $fmvdep = "curl" ]; then $fmvtmp=6 ; fi
+  if [ $fmvdep = "make" ]; then $fmvtmp=3 ; fi
+  find_min_version_result=$fmvtmp
 }
 
 vers_to_int()
@@ -279,11 +294,12 @@ version_less_than_or_equal()
   v1int=$vers_to_int_result
   vers_to_int $v2
   v2int=$vers_to_int_result
+  debug "v1, v2, v1int, v2int" , $v1, $v2, $v1int, $v2int
   if [ $v1int -le $v2int ]; then
-    debug "v1 < v2, v1int < v2int:" $v1, $v2, $v1int, $v2int
+    debug "v1 <= v2"
     return 0
   else
-    debug "v1 >= v2, v1int < v2int:" $v1, $v2, $v1int, $v2int
+    debug "v1 > v2"
     return 1
   fi
   v1=
@@ -292,30 +308,28 @@ version_less_than_or_equal()
   v2int=
 }
 
-compare_versions()
+compare_version()
 {
+  if [ ! $1 ] ; then return; fi
+  if [ ! $2 ] ; then return; fi
   compare_versions_result=
+  cvminver=$1
+  cvsysver=$2
   cvtmp=
-  for cvdep in $*; do
-    cvminver=`eval echo "$"$cvdep"_minver"`
-    cvinstver=`eval echo "$"$cvdep"_instver"`
-    version_less_than_or_equal $cvminver $cvinstver
-    if [ $? = 0 ]; then
-      debug comp vers one: $cvtmp
-      cvtmp="$cvtmp $cvdep"_compared"=OK"
-    else
-      debug comp vers notone: $cvtmp
-      cvtmp="$cvtmp $cvdep"_compared"=NotOK"
-    fi
-  done
-  compare_versions_result=$cvtmp
+  version_less_than_or_equal $cvminver $cvsysver
+  if [ $? = 0 ]; then
+    cvtmp="OK"
+  else
+    cvtmp="NotOK"
+  fi
+  compare_version_result=$cvtmp
   cvtmp=
 }
 
-
 pretty_print()
 {
-  ppdeps=$*
+  debug pretty_print $*
+
   brightred="\033[1;31m"
   red="\033[0;31m"
   brown="\033[0;33m"
@@ -326,65 +340,36 @@ pretty_print()
   cyan="\033[0;36m"
   gray="\033[0;37m"
   nocolor="\033[0m"
-  str="%s%-12s"
-  format='{printf("'$str$str$str$str$nocolor'\n",$1,$2,$3,$4,$5,$6,$7,$8)}'
-  title="$gray depname $gray minimum $gray installed $gray OKness"
-  echo -e $title | awk $format
-  for ppdep in $ppdeps; do
-    minver=`eval echo "$"$ppdep"_minver"`
-    instver=`eval echo "$"$ppdep"_instver"`
-    compared=`eval echo "$"$ppdep"_compared"`
-    if [ $compared = "NotOK" ]; then
-      cmpcolor=$purple;
-      ivcolor=$purple;
-    else
-      cmpcolor=$green;
-      ivcolor=$gray;
-    fi
-    echo -e $cyan $ppdep $gray $minver $ivcolor $instver $cmpcolor $compared | awk $format
-  done
+
+  pp_dep=$1
+  pp_minver=$2
+  pp_sysver=$3
+  pp_compared=$4
+  debug pretty print $1 $2 $3 $4
+
+  ppstr="%s%-12s"
+  pp_format='{printf("'$ppstr$ppstr$ppstr$ppstr$nocolor'\n",$1,$2,$3,$4,$5,$6,$7,$8)}'
+  pp_title="$gray depname $gray minimum $gray system $gray OKness"
+  if [ $1 ]; then
+   if [ $1 = "title" ]; then
+    echo -e $pp_title | awk $pp_format
+    return ;
+   fi
+  fi
+
+  if [ $pp_compared = "NotOK" ]; then
+    pp_cmpcolor=$purple;
+    pp_ivcolor=$purple;
+  else
+    pp_cmpcolor=$green;
+    pp_ivcolor=$gray;
+  fi
+  echo -e $cyan $pp_dep $gray $pp_minver $pp_ivcolor $pp_sysver $pp_cmpcolor $pp_compared | awk $pp_format
 }
 
 
-checkargs $*
-deps="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc imagemagick python bison flex git curl make"
-#deps=opencsg
-#deps=glew
-set_min_versions $deps
-eval $set_min_versions_result
-find_installed_versions $deps
-eval $find_installed_versions_result
-compare_versions $deps
-eval $compare_versions_result
-pretty_print $deps
-exit 0
 
 
-
-
-
-# use the sytem package manager to figure out which versions of
-# binary dependencies are installed and which are available.
-#
-# dependencies can be executable programs, like flex and
-# bison, or they can be binary packages, like CGAL.
-#
-# 'custom installed' dependencies created without the package system
-# are not considered here.
-#
-# usage
-#  check-dependencies.sh                # run
-#  check-dependencies.sh debug          # debug run
-#
-# design
-#  speed and elegance have been traded-off for an attempt at correctness
-
-DEBUG=
-
-debug()
-{
-  if [ $DEBUG ]; then echo dependency-versions.sh: $* ; fi
-}
 
 set_default_package_map()
 {
@@ -448,20 +433,20 @@ debian_dep_ver()
     return
   fi
 
-  # Already installed
+  # Already system
   # examples of debian version strings
   # cgal 4.0-4   gmp 2:5.0.5+dfsg  bison 1:2.5.dfsg-2.1 cmake 2.8.9~rc1
   debug "test dpkg on $debpkgname"
   testdpkg=`dpkg --status $debpkgname 2>&1`
   if [ "$testdpkg" ]; then
-    if [ ! "`echo $testdpkg | grep not.installed`" ]; then
+    if [ ! "`echo $testdpkg | grep not.system`" ]; then
       ver=`dpkg --status $debpkgname | grep ^Version: | awk ' { print $2 }'`
       ver=`echo $ver | tail -1 | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
       if [ $ver ] ; then veri=$ver ; fi
     fi
   fi
 
-  # Available to be installed
+  # Available to be system
   ver=
   debug "test apt-cache on $debpkgname"
   # apt-cache show is flaky on older debian. dont run unless search is OK
@@ -540,7 +525,7 @@ openbsd_dep_ver()
     return
   fi
 
-  # Installed
+  # system
   # examples of openbsd package names
   # python-2.7  cmake-2.8.6p2 boost-libs-1.45.0p0
   test_pkginfo=`pkg_info -A | grep $openbsd_pkgname`
@@ -585,12 +570,12 @@ netbsd_dep_ver()
     return
   fi
 
-  # Installed
+  # system
   # examples of netbsd package names
   # zsh-4.3.15nb1
   test_pkgin=`pkgin list | grep $netbsd_pkgname`
   if [ "$test_pkgin" ]; then
-    debug installed check - $test_pkgin
+    debug system check - $test_pkgin
     ver=`pkgin list $netbsd_pkgname | grep "$netbsd_pkgname" | tail -1`
     debug strip 1 $ver
     ver=`echo $ver | awk '{print $1}' | sed s/.*-// | sed s/nb[0-9]*//`
@@ -696,21 +681,36 @@ dep_ver()
 }
 
 
+
+
 checkargs()
 {
-  for i in $*; do if [ $i = debug ]; then DEBUG=1 ; fi ; done
+  for i in $*; do
+    if [ $i = "debug" ]; then DEBUG=1 ; fi
+    if [ $i = "qmake" ]; then QMAKE_MODE=1 ; fi
+  done
+}
+
+main()
+{
+  deps="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc"
+  deps="$deps imagemagick python bison flex git curl make"
+  deps=opencsg
+  #deps=glew
+  pretty_print title
+  for dep in $deps; do
+    debug "processing $dep"
+    find_sys_version $dep
+    dep_sysver=$find_sys_version_result
+    find_min_version $dep
+    dep_minver=$find_min_version_result
+    compare_version $dep_minver $dep_sysver
+    dep_compare=$compare_version_result
+  	pretty_print $dep $dep_minver $dep_sysver $dep_compare
+  done
 }
 
 checkargs $*
+main
+exit 0
 
-
-libdeps="cgal boost mpfr gmp eigen opencsg qt4 glew"
-bindeps="imagemagick flex bison gcc git curl cmake make bash python"
-
-echo pkgname, pkginstalled, pkgavail
-
-for i in $libdeps $bindeps; do
-#for i in cmake; do
-  dep_ver $i
-  echo $i $dep_ver_result
-done
