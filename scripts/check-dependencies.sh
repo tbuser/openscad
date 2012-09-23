@@ -56,16 +56,16 @@ eigen_sysver()
 {
   debug eigen
   eigpath=
-  eig3path=$syspath/eigen3/Eigen/src/Core/util/Macros.h
-  eig2path=$syspath/eigen2/Eigen/src/Core/util/Macros.h
+  eig3path=$syspath/include/eigen3/Eigen/src/Core/util/Macros.h
+  eig2path=$syspath/include/eigen2/Eigen/src/Core/util/Macros.h
   if [ -e $eig3path ]; then eigpath=$eig3path; fi
   if [ -e $eig2path ]; then eigpath=$eig2path; fi
   debug $eig2path
   if [ ! $eigpath ]; then return; fi
-  wrld=`grep "define  *EIGEN_WORLD_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
-  maj=`grep "define  *EIGEN_MAJOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
-  min=`grep "define  *EIGEN_MINOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
-  eigen_sysver_result="$wrld.$maj.$min"
+  eswrld=`grep "define  *EIGEN_WORLD_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
+  esmaj=`grep "define  *EIGEN_MAJOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
+  esmin=`grep "define  *EIGEN_MINOR_VERSION  *[0-9]*" $eigpath | awk '{print $3}'`
+  eigen_sysver_result="$eswrld.$esmaj.$esmin"
 }
 
 opencsg_sysver()
@@ -89,15 +89,17 @@ opencsg_sysver()
 
 cgal_sysver()
 {
-  if [ ! -e $syspath/include/CGAL/version.h ]; then return; fi
-  cgal_sysver_result=`grep "define  *CGAL_VERSION  *[0-9.]*" $syspath/CGAL/version.h | awk '{print $3}'`
+  cgalpath=$syspath/include/CGAL/version.h
+  if [ ! -e $cgalpath ]; then return; fi
+  cgal_sysver_result=`grep "define  *CGAL_VERSION  *[0-9.]*" $cgalpath | awk '{print $3}'`
 }
 
 boost_sysver()
 {
-  if [ ! -e $syspath/include/boost/version.hpp ]; then return; fi
-  bsver=`grep 'define  *BOOST_LIB_VERSION *[0-9_"]*' $syspath/include/boost/version.hpp | awk '{print $3}'`
-  bsver=`echo $ver | sed s/'"'//g | sed s/'_'/'.'/g`
+  boostpath=$syspath/include/boost/version.hpp
+  if [ ! -e $boostpath ]; then return; fi
+  bsver=`grep 'define  *BOOST_LIB_VERSION *[0-9_"]*' $boostpath | awk '{print $3}'`
+  bsver=`echo $bsver | sed s/'"'//g | sed s/'_'/'.'/g`
   boost_sysver_result=$bsver
 }
 
@@ -107,7 +109,7 @@ mpfr_sysver()
   if [ ! -e $mpfrpath ]; then return; fi
   mpfrsver=`grep 'define  *MPFR_VERSION_STRING  *' $mpfrpath | awk '{print $3}'`
   mpfrsver=`echo $mpfrsver | sed s/"-.*"// | sed s/'"'//`
-  mpfr_sysver_result=$mpfrver
+  mpfr_sysver_result=$mpfrsver
 }
 
 gmp_sysver()
@@ -123,27 +125,28 @@ gmp_sysver()
       gmppat=`grep "define  *__GNU_MP_VERSION_PATCHLEVEL  *[0-9]*" $gmppath | awk '{print $3}'`
     fi
   done
-  ver="$gmpmaj.$gmpmin.$gmppat"
+  gmp_sysver_result="$gmpmaj.$gmpmin.$gmppat"
 }
 
 qt4_sysver()
 {
   qt4path=$syspath/include/qt4/QtCore/qglobal.h
   if [ ! -e $qt4path ]; then return; fi
-  ver=`grep 'define  *QT_VERSION_STR  *' $qt4path | awk '{print $3}'`
-  ver=`echo $ver | sed s/'"'//g`
+  qt4ver=`grep 'define  *QT_VERSION_STR  *' $qt4path | awk '{print $3}'`
+  qt4ver=`echo $qt4ver | sed s/'"'//g`
+  qt4_sysver_result=$qt4ver
 }
 
 glew_sysver()
 {
-  ver=unknown # glew has no traditional version numbers
+  glew_sysver_result=unknown # glew has no traditional version numbers
 }
 
 imagemagick_sysver()
 {
   if [ ! -x $syspath/bin/convert ]; then return; fi
-  ver=`$syspath/bin/convert --version | grep -i version`
-  ver=`echo $ver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
+  imver=`$syspath/bin/convert --version | grep -i version`
+  imagemagick_sysver_result=`echo $imver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
 }
 
 flex_sysver()
@@ -151,13 +154,13 @@ flex_sysver()
   flexbin=$syspath/bin/flex
   if [ -x $syspath/bin/gflex ]; then flexbin=$syspath/bin/gflex; fi # openbsd
   if [ ! -x $flexbin ]; then return ; fi
-  ver=`$flexbin --version | sed s/"[^0-9.]"/" "/g`
+  flex_sysver_result=`$flexbin --version | sed s/"[^0-9.]"/" "/g`
 }
 
 bison_sysver()
 {
   if [ ! -x $syspath/bin/bison ]; then return ; fi
-  ver=`$syspath/bin/bison --version | grep bison | sed s/"[^0-9.]"/" "/g`
+  bison_sysver_result=`$syspath/bin/bison --version | grep bison | sed s/"[^0-9.]"/" "/g`
 }
 
 gcc_sysver()
@@ -165,26 +168,27 @@ gcc_sysver()
   bingcc=$syspath/bin/gcc
   if [ ! -x $syspath/bin/gcc ]; then bingcc=gcc; fi
   if [ ! "`$bingcc --version`" ]; then return; fi
-  ver=`$bingcc --version| grep -i gcc`
-  ver=`echo $ver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
+  gccver=`$bingcc --version| grep -i gcc`
+  gccver=`echo $gccver | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
+  gcc_sysver_result=$gccver
 }
 
 git_sysver()
 {
   if [ ! -x $syspath/bin/git ]; then return ; fi
-  ver=`$syspath/bin/git --version | grep git | sed s/"[^0-9.]"/" "/g`
+  git_sysver_result=`$syspath/bin/git --version | grep git | sed s/"[^0-9.]"/" "/g`
 }
 
 curl_sysver()
 {
   if [ ! -x $syspath/bin/curl ]; then return; fi
-  ver=`$syspath/bin/curl --version | grep curl | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
+  curl_sysver_result=`$syspath/bin/curl --version | grep curl | sed s/"[^0-9. ]"/" "/g | awk '{print $1}'`
 }
 
 cmake_sysver()
 {
   if [ ! -x $syspath/bin/cmake ]; then return ; fi
-  ver=`$syspath/bin/cmake --version | grep cmake | sed s/"[^0-9.]"/" "/g`
+  cmake_sysver_result=`$syspath/bin/cmake --version | grep cmake | sed s/"[^0-9.]"/" "/g`
 }
 
 make_sysver()
@@ -192,7 +196,7 @@ make_sysver()
   binmake=$syspath/bin/make
   if [ -x $syspath/bin/gmake ]; then binmake=$syspath/bin/gmake ;fi
   if [ ! -x $binmake ]; then return ;fi
-  ver=`$binmake --version 2>&1 | grep -i 'gnu make' | sed s/"[^0-9.]"/" "/g`
+  make_sysver_result=`$binmake --version 2>&1 | grep -i 'gnu make' | sed s/"[^0-9.]"/" "/g`
   if [ ! "`echo $ver | grep [0-9]`" ]; then return; fi
 }
 
@@ -202,19 +206,18 @@ bash_sysver()
   if [ -x /usr/bin/bash ]; then binbash=/usr/bin/bash ;fi
   if [ -x $syspath/bin/bash ]; then binbash=$syspath/bin/bash ;fi
   if [ ! -x $binbash ]; then return; fi
-  ver=`$binbash --version | grep bash | sed s/"[^0-9. ]"/" "/g|awk '{print $1}'`
+  bash_sysver_result=`$binbash --version | grep bash | sed s/"[^0-9. ]"/" "/g|awk '{print $1}'`
 }
 
 python_sysver()
 {
   if [ ! -x $syspath/bin/python ]; then return; fi
-  ver=`$syspath/bin/python --version 2>&1 | awk '{print $2}'`
-  python_sysver=$ver
+  python_sysver_result=`$syspath/bin/python --version 2>&1 | awk '{print $2}'`
 }
 
 find_sys_version()
 {
-  debug find_sys_version
+  debug find_sys_version $*
   dep=$1
   find_syspath
   syspath=$find_syspath_result
@@ -228,23 +231,24 @@ find_sys_version()
 
 get_readme_version()
 {
+  debug get_readme_version $*
   if [ ! $1 ]; then return; fi
   depname=$1
-  local tmp=
+  local grv_tmp=
   debug $depname
   # example-->     * [CGAL (3.6 - 3.9)] (www.cgal.org)  becomes 3.6
   # steps: eliminate *, find left (, find -, make 'x' into 0, delete junk
-  tmp=`grep -i ".$depname.*([0-9]" README.md | sed s/"*"//`
-  debug $tmp
-  tmp=`echo $tmp | awk -F"(" '{print $2}'`
-  debug $tmp
-  tmp=`echo $tmp | awk -F"-" '{print $1}'`
-  debug $tmp
-  tmp=`echo $tmp | sed s/"x"/"0"/g`
-  debug $tmp
-  tmp=`echo $tmp | sed s/"[^0-9.]"//g`
-  debug $tmp
-  get_readme_version_result=$tmp
+  grv_tmp=`grep -i ".$depname.*([0-9]" README.md | sed s/"*"//`
+  debug $grv_tmp
+  grv_tmp=`echo $grv_tmp | awk -F"(" '{print $2}'`
+  debug $grv_tmp
+  grv_tmp=`echo $grv_tmp | awk -F"-" '{print $1}'`
+  debug $grv_tmp
+  grv_tmp=`echo $grv_tmp | sed s/"x"/"0"/g`
+  debug $grv_tmp
+  grv_tmp=`echo $grv_tmp | sed s/"[^0-9.]"//g`
+  debug $grv_tmp
+  get_readme_version_result=$grv_tmp
 }
 
 
@@ -256,9 +260,9 @@ find_min_version()
   fmvdep=$1
   get_readme_version $fmvdep
   fmvtmp=$get_readme_version_result
-  if [ $fmvdep = "git" ]; then $fmvtmp=1.5 ; fi
-  if [ $fmvdep = "curl" ]; then $fmvtmp=6 ; fi
-  if [ $fmvdep = "make" ]; then $fmvtmp=3 ; fi
+  if [ $fmvdep = "git" ]; then fmvtmp=1.5 ; fi
+  if [ $fmvdep = "curl" ]; then fmvtmp=6 ; fi
+  if [ $fmvdep = "make" ]; then fmvtmp=3 ; fi
   find_min_version_result=$fmvtmp
 }
 
@@ -310,9 +314,10 @@ version_less_than_or_equal()
 
 compare_version()
 {
+  debug compare_version $*
+  compare_versions_result="NotOK"
   if [ ! $1 ] ; then return; fi
   if [ ! $2 ] ; then return; fi
-  compare_versions_result=
   cvminver=$1
   cvsysver=$2
   cvtmp=
@@ -341,21 +346,21 @@ pretty_print()
   gray="\033[0;37m"
   nocolor="\033[0m"
 
-  pp_dep=$1
-  pp_minver=$2
-  pp_sysver=$3
-  pp_compared=$4
-  debug pretty print $1 $2 $3 $4
-
   ppstr="%s%-12s"
   pp_format='{printf("'$ppstr$ppstr$ppstr$ppstr$nocolor'\n",$1,$2,$3,$4,$5,$6,$7,$8)}'
   pp_title="$gray depname $gray minimum $gray system $gray OKness"
-  if [ $1 ]; then
-   if [ $1 = "title" ]; then
+  if [ $1 ]; then pp_dep=$1; fi
+  if [ $pp_dep = "title" ]; then
     echo -e $pp_title | awk $pp_format
     return ;
-   fi
   fi
+
+  if [ $2 ]; then pp_minver=$2; else pp_minver="unknown"; fi
+  if [ $3 ]; then pp_sysver=$3; else pp_sysver="unknown"; fi
+  if [ $4 ]; then pp_compared=$4; else pp_compared="NotOK"; fi
+  debug $pp_minver
+  debug $pp_sysver
+  debug $pp_compared
 
   if [ $pp_compared = "NotOK" ]; then
     pp_cmpcolor=$purple;
@@ -365,6 +370,10 @@ pretty_print()
     pp_ivcolor=$gray;
   fi
   echo -e $cyan $pp_dep $gray $pp_minver $pp_ivcolor $pp_sysver $pp_cmpcolor $pp_compared | awk $pp_format
+  pp_dep=
+  pp_minver=
+  pp_sysver=
+  pp_compared=
 }
 
 
@@ -695,8 +704,6 @@ main()
 {
   deps="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc"
   deps="$deps imagemagick python bison flex git curl make"
-  deps=opencsg
-  #deps=glew
   pretty_print title
   for dep in $deps; do
     debug "processing $dep"
