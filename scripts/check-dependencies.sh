@@ -39,7 +39,7 @@ find_syspath()
 {
   sptmp=
   syspath=
-  if [ "`uname | grep Linux`" ]; then
+  if [ "`uname | grep -i 'Linux\|Debian'`" ]; then
     sptmp="/usr"
   elif [ "`uname | grep -i 'FreeBSD\|OpenBSD'`" ]; then
     sptmp="/usr/local"
@@ -77,7 +77,7 @@ opencsg_sysver()
   # Note that before 1.3.2 there's no version number at all.
   hex=`grep "define  *OPENCSG_VERSION  *[0-9x]*" $syspath/include/opencsg.h`
   if [ ! "$hex" ]; then
-    ocver="0.0" ;
+    ocver=
   else
     ocver=`echo $hex | sed s/"[^0-9x.]"//g | sed s/"0x"// | sed s/"^0*"//` # de-hex
     debug parse opencsg - removed leading 0x0. $ver
@@ -139,7 +139,7 @@ qt4_sysver()
 
 glew_sysver()
 {
-  glew_sysver_result=unknown # glew has no traditional version numbers
+  glew_sysver_result= # glew has no traditional version numbers
 }
 
 imagemagick_sysver()
@@ -197,7 +197,7 @@ make_sysver()
   if [ -x $syspath/bin/gmake ]; then binmake=$syspath/bin/gmake ;fi
   if [ ! -x $binmake ]; then return ;fi
   make_sysver_result=`$binmake --version 2>&1 | grep -i 'gnu make' | sed s/"[^0-9.]"/" "/g`
-  if [ ! "`echo $ver | grep [0-9]`" ]; then return; fi
+  if [ ! "`echo $make_sysver_result | grep [0-9]`" ]; then return; fi
 }
 
 bash_sysver()
@@ -215,16 +215,329 @@ python_sysver()
   python_sysver_result=`$syspath/bin/python --version 2>&1 | awk '{print $2}'`
 }
 
-find_sys_version()
+set_default_package_map()
 {
-  debug find_sys_version $*
-  dep=$1
-  find_syspath
-  syspath=$find_syspath_result
-  eval $dep"_sysver" $syspath
-  find_sys_version_result=`eval echo "$"$dep"_sysver_result"`
+  glew=glew
+  boost=boost
+  eigen=eigen3
+  imagemagick=imagemagick
+  make=make
+  python=python
+  opencsg=opencsg
+  cgal=cgal
+  bison=bison
+  gmp=gmp
+  mpfr=mpfr
+  bash=bash
+  flex=flex
+  gcc=gcc
+  cmake=cmake
+  curl=curl
+  git=git
+  qt4=qt4
 }
 
+
+apt_pkg_search()
+{
+  debug apt_pkg_search $*
+  apt_pkg_search_result=
+  pkgname=$1
+  dps_ver=
+
+  # translate pkgname to apt packagename
+  set_default_package_map
+  for pn in cgal boost mpfr opencsg qt4; do eval $pn="lib"$pn"-dev" ; done
+
+  # handle multiple version names of same package (ubuntu, debian, etc)
+  if [ $pkgname = glew ]; then
+    glewtest=`apt-cache search libglew-dev`
+    if [ "`echo $glewtest | grep glew1.6-dev`" ]; then glew=libglew1.6-dev;
+    elif [ "`echo $glewtest | grep glew1.5-dev`" ]; then glew=libglew1.5-dev;
+    elif [ "`echo $glewtest | grep glew-dev`" ]; then glew=libglew-dev; fi
+  elif [ $pkgname = gmp ]; then
+    if [ "`apt-cache search libgmp3-dev`" ]; then gmp=libgmp3-dev ;fi
+    if [ "`apt-cache search libgmp-dev`" ]; then gmp=libgmp-dev ;fi
+  fi
+
+  debpkgname=`eval echo "$"$pkgname`
+
+  if [ ! $debpkgname ]; then
+    debug "unknown package" $pkgname; return;
+  fi
+
+  debug $pkgname ".deb name:" $debpkgname
+  if [ ! "`command -v dpkg`" ]; then
+    debug command dpkg not found. cannot search packages.
+    return
+  fi
+
+  # examples of apt version strings
+  # cgal 4.0-4   gmp 2:5.0.5+dfsg  bison 1:2.5.dfsg-2.1 cmake 2.8.9~rc1
+
+  if [ $pkgname = eigen ]; then
+    aps_null=`dpkg --status libeigen3-dev 2>&1`
+    if [ $? = 0 ]; then
+      debpkgname=libeigen3-dev
+    else
+      debpkgname=libeigen2-dev
+    fi
+  fi
+
+  debug "test dpkg on $debpkgname"
+  testdpkg=`dpkg --status $debpkgname 2>&1`
+  if [ "$testdpkg" ]; then
+    #debug test dpkg: $testdpkg
+    if [ "`echo $testdpkg | grep -i version`" ]; then
+      dps_ver=`dpkg --status $debpkgname | grep -i ^version: | awk ' { print $2 }'`
+      debug version line from dpkg: $dps_ver
+      dps_ver=`echo $dps_ver | tail -1 | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
+      debug version: $dps_ver
+    else
+      debug couldnt find version string after dpkg --status $debpkgname
+    fi
+  else
+    debug testdpkg failed on $debpkgname
+  fi
+
+  # Available to be system
+  #dps_ver=
+  #debug "test apt-cache on $debpkgname"
+  # apt-cache show is flaky on older apt. dont run unless search is OK
+  #test_aptcache=`apt-cache search $debpkgname`
+  #if [ "$test_aptcache" ]; then
+  #  test_aptcache=`apt-cache show $debpkgname`
+  #  if [ ! "`echo $test_aptcache | grep -i no.packages`" ]; then
+  #    ver=`apt-cache show $debpkgname | grep ^Version: | awk ' { print $2 }'`
+  #    ver=`echo $ver | tail -1 | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
+  #    if [ $ver ] ; then vera=$ver ; fi
+  #  fi
+  #fi
+
+  apt_pkg_search_result="$dps_ver"
+}
+
+freebsd_pkg_search()
+{
+  freebsd_pkg_search_result=
+  pkgname=$1
+  veri=
+  vera=unknown # freebsd can't easily + reliably determine remote package versions
+  ver=
+
+  # translate pkgname to freebsd packagename
+  set_default_package_map
+  boost=boost-libs
+  eigen=eigen
+  imagemagick=ImageMagick
+  make=gmake
+  qt4=qt4-corelib
+  freebsd_pkgname=`eval echo "$"$pkgname`
+
+  if [ ! $freebsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
+
+  debug $pkgname". freebsd name:" $freebsd_pkgname
+  if [ ! "`command -v pkg_info`" ]; then
+    echo command pkg_info not found. cannot proceed.
+    return
+  fi
+  # examples of freebsd package names
+  # python-2.7,2  cmake-2.8.6_1 boost-libs-1.45.0_1
+  test_pkginfo=`pkg_info | grep $freebsd_pkgname`
+  if [ "$test_pkginfo" ]; then
+    debug $test_pkginfo
+    ver=`echo $test_pkginfo | awk '{print $1}' | sed s/"[_,].*"//`
+    ver=`echo $ver | sed s/"$freebsd_pkgname"-//`
+  fi
+  if [ $pkgname = "gcc" ]; then
+    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
+  fi
+  if [ $ver ]; then veri=$ver; fi
+  freebsd_pkg_search_result="$veri $vera"
+}
+
+openbsd_pkg_search()
+{
+  openbsd_pkg_search_result=
+  pkgname=$1
+  veri=
+  vera=unknown # openbsd can't easily + reliably determine remote package versions
+  ver=
+
+  # translate pkgname to openbsd packagename
+  set_default_package_map
+  eigen=eigen2
+  imagemagick=ImageMagick
+  make=gmake
+  openbsd_pkgname=`eval echo "$"$pkgname`
+
+  if [ ! $openbsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
+
+  debug $pkgname". openbsd name:" $openbsd_pkgname
+  if [ ! "`command -v pkg_info`" ]; then
+    echo command pkg_info not found. cannot proceed.
+    return
+  fi
+
+  # system
+  # examples of openbsd package names
+  # python-2.7  cmake-2.8.6p2 boost-libs-1.45.0p0
+  test_pkginfo=`pkg_info -A | grep $openbsd_pkgname`
+  if [ "$test_pkginfo" ]; then
+    debug $test_pkginfo
+    ver=`echo $test_pkginfo | awk '{print $1}' `
+    ver=`echo $ver | sed s/"$openbsd_pkgname"-// | sed s/p[0-9]*//`
+    if [ $ver ]; then veri=$ver; fi
+  fi
+  if [ $pkgname = "gcc" ]; then
+    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
+    if [ $ver ]; then veri=$ver; fi
+  fi
+
+  openbsd_pkg_search_result="$veri $vera"
+}
+
+
+netbsd_pkg_search()
+{
+  netbsd_pkg_search_result=
+  pkgname=$1
+  veri=
+  vera=
+  ver=
+
+  # translate pkgname to netbsd packagename
+  set_default_package_map
+  imagemagick=ImageMagick
+  boost=boost-libs
+  python=python27
+  eigen=eigen
+  make=gmake
+  git=scmgit
+  netbsd_pkgname=`eval echo "$"$pkgname`
+
+  if [ ! $netbsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
+
+  debug $pkgname". netbsd name:" $netbsd_pkgname
+  if [ ! "`command -v pkgin`" ]; then
+    echo command pkgin not found. cannot proceed.
+    return
+  fi
+
+  # system
+  # examples of netbsd package names
+  # zsh-4.3.15nb1
+  test_pkgin=`pkgin list | grep $netbsd_pkgname`
+  if [ "$test_pkgin" ]; then
+    debug system check - $test_pkgin
+    ver=`pkgin list $netbsd_pkgname | grep "$netbsd_pkgname" | tail -1`
+    debug strip 1 $ver
+    ver=`echo $ver | awk '{print $1}' | sed s/.*-// | sed s/nb[0-9]*//`
+    debug strip 2 $ver
+    if [ $ver ]; then veri=$ver; fi
+  fi
+  if [ $pkgname = "gcc" ]; then
+    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
+    if [ $ver ]; then veri=$ver; fi
+    vera=unknown
+  fi
+
+  # Available
+  ver=
+  test_pkgin=`pkgin pkg-descr $netbsd_pkgname 2>&1 | grep -i ^information`
+  # make ftp://netbsd.org/etc/etc/etc/package-x.y.z.tgz into x.y.z
+  if [ "$test_pkgin" ]; then
+    debug available check $test_pkgin
+    ver=`echo $test_pkgin | awk '{print $3}' | tail -1`
+    debug stripped $ver
+    ver=`basename $ver | sed s/"^.*-"// | sed s/://`
+    debug basename $ver
+    ver=`echo $ver | sed s/.tgz$// | sed s/.bz2$// | sed s/.xz$//`
+    ver=`echo $ver | sed s/nb[0-9]*//`
+    debug strip2 $ver
+  fi
+  if [ $ver ]; then vera=$ver; fi
+
+  netbsd_pkg_search_result="$veri $vera"
+}
+
+
+
+set_fedora_package_map()
+{
+  cgal=CGAL-devel
+  eigen=eigen2-devel
+  qt4=qt-devel
+  imagemagick=ImageMagick
+  for pn in  boost gmp mpfr glew; do eval $pn=$pn"-devel" ; done
+}
+
+yum_pkg_search()
+{
+  yum_pkg_search_result=
+  pkgname=$1
+
+  set_default_package_map
+  set_fedora_package_map
+  fedora_pkgname=`eval echo "$"$pkgname`
+
+  debug $pkgname". fedora name:" $fedora_pkgname
+  if [ ! $fedora_pkgname ]; then
+    debug "unknown package" $pkgname; return;
+  fi
+
+  test_yum=`yum info $fedora_pkgname 2>&1`
+  if [ "$test_yum" ]; then
+    debug test_yum: $test_yum
+    ydvver=`yum info $fedora_pkgname 2>&1 | grep ^Version | awk '{print $3}' `
+    if [ $ydvver ]; then ydvver=$ydvver ; fi
+  else
+    debug test_yum failed on $pkgname
+  fi
+  yum_pkg_search_result="$ydvver"
+}
+
+
+pkg_search()
+{
+  debug pkg_search $*
+  pkg_search_result=
+
+  if [ "`command -v apt-get`" ]; then
+    apt_pkg_search $*
+    pkg_search_result=$apt_pkg_search_result
+  elif [ "`command -v yum`" ]; then
+    yum_pkg_search $*
+    pkg_search_result=$yum_pkg_search_result
+  elif [ "`uname | grep FreeBSD`" ]; then
+    freebsd_pkg_search $*
+    pkg_search_result=$freebsd_pkg_search_result
+  elif [ "`uname | grep NetBSD`" ]; then
+    netbsd_pkg_search $*
+    pkg_search_result=$netbsd_pkg_search_result
+  elif [ "`uname | grep OpenBSD`" ]; then
+    openbsd_pkg_search $*
+    pkg_search_result=$openbsd_pkg_search_result
+  else
+    echo unknown system type. cannot search packages.
+  fi
+}
+
+pkg_config_search()
+{
+  debug pkg_config_search $*
+  pkg_config_search_result=
+  pcstmp=
+  if [ ! $1 ]; then return; fi
+  pkgname=$1
+
+  pkg-config --exists $pkgname 2>&1
+  if [ $? = 0 ]; then
+    pkg_config_search_result=`pkg-config --modversion $pkgname`
+  else
+    debug pkg_config_search failed on $*, result of run was: $pcstmp
+  fi
+}
 
 
 
@@ -315,7 +628,7 @@ version_less_than_or_equal()
 compare_version()
 {
   debug compare_version $*
-  compare_versions_result="NotOK"
+  compare_version_result="NotOK"
   if [ ! $1 ] ; then return; fi
   if [ ! $2 ] ; then return; fi
   cvminver=$1
@@ -358,9 +671,6 @@ pretty_print()
   if [ $2 ]; then pp_minver=$2; else pp_minver="unknown"; fi
   if [ $3 ]; then pp_sysver=$3; else pp_sysver="unknown"; fi
   if [ $4 ]; then pp_compared=$4; else pp_compared="NotOK"; fi
-  debug $pp_minver
-  debug $pp_sysver
-  debug $pp_compared
 
   if [ $pp_compared = "NotOK" ]; then
     pp_cmpcolor=$purple;
@@ -379,315 +689,40 @@ pretty_print()
 
 
 
-
-set_default_package_map()
+find_sys_version()
 {
-  glew=glew
-  boost=boost
-  eigen=eigen3
-  imagemagick=imagemagick
-  make=make
-  python=python
-  opencsg=opencsg
-  cgal=cgal
-  bison=bison
-  gmp=gmp
-  mpfr=mpfr
-  bash=bash
-  flex=flex
-  gcc=gcc
-  cmake=cmake
-  curl=curl
-  git=git
-  qt4=qt4
+  debug find_sys_version $*
+  find_sys_version_result=unknown
+  fsv_tmp=
+  dep=$1
+
+  # pkg-config search
+  if [ "`command -v pkg-config`" ]; then
+    pkg_config_search $dep
+    fsv_tmp=$pkg_config_search_result
+  fi
+
+  # header/binary program search
+  if [ ! $fsv_tmp ]; then
+    find_syspath
+    syspath=$find_syspath_result
+    debug $dep"_sysver" $syspath
+    eval $dep"_sysver" $syspath
+    fsv_tmp=`eval echo "$"$dep"_sysver_result"`
+  fi
+
+  # package search
+  if [ ! $fsv_tmp ]; then
+    pkg_search $dep
+    fsv_tmp=$pkg_search_result
+  fi
+
+  if [ $fsv_tmp ]; then
+    find_sys_version_result=$fsv_tmp
+  fi
 }
 
 
-debian_dep_ver()
-{
-  debian_dep_ver_result=
-  pkgname=$1
-  veri=none
-  vera=none
-  ver=
-
-  # translate pkgname to debian packagename
-  set_default_package_map
-  for pn in cgal boost mpfr opencsg qt4; do eval $pn="lib"$pn"-dev" ; done
-  # handle multiple version names of same package (ubuntu, debian, etc)
-  if [ $pkgname = glew ]; then
-    glewtest=`apt-cache search libglew-dev`
-    if [ "`echo $glewtest | grep glew1.6-dev`" ]; then glew=libglew1.6-dev;
-    elif [ "`echo $glewtest | grep glew1.5-dev`" ]; then glew=libglew1.5-dev;
-    elif [ "`echo $glewtest | grep glew-dev`" ]; then glew=libglew-dev; fi
-  elif [ $pkgname = eigen ]; then
-    if [ "`apt-cache search libeigen2-dev`" ]; then eigen=libeigen2-dev ;fi
-    if [ "`apt-cache search libeigen3-dev`" ]; then eigen=libeigen3-dev ;fi
-  elif [ $pkgname = gmp ]; then
-    if [ "`apt-cache search libgmp3-dev`" ]; then gmp=libgmp3-dev ;fi
-    if [ "`apt-cache search libgmp-dev`" ]; then gmp=libgmp-dev ;fi
-  fi
-
-  debpkgname=`eval echo "$"$pkgname`
-
-  if [ ! $debpkgname ]; then echo "unknown package" $pkgname; return; fi
-
-  debug $pkgname ".deb name:" $debpkgname
-  if [ ! "`command -v apt-cache`" ]; then
-    echo command apt-cache not found. cannot proceed.
-    return
-  fi
-  if [ ! "`command -v dpkg`" ]; then
-    echo command dpkg not found. cannot proceed.
-    return
-  fi
-
-  # Already system
-  # examples of debian version strings
-  # cgal 4.0-4   gmp 2:5.0.5+dfsg  bison 1:2.5.dfsg-2.1 cmake 2.8.9~rc1
-  debug "test dpkg on $debpkgname"
-  testdpkg=`dpkg --status $debpkgname 2>&1`
-  if [ "$testdpkg" ]; then
-    if [ ! "`echo $testdpkg | grep not.system`" ]; then
-      ver=`dpkg --status $debpkgname | grep ^Version: | awk ' { print $2 }'`
-      ver=`echo $ver | tail -1 | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
-      if [ $ver ] ; then veri=$ver ; fi
-    fi
-  fi
-
-  # Available to be system
-  ver=
-  debug "test apt-cache on $debpkgname"
-  # apt-cache show is flaky on older debian. dont run unless search is OK
-  test_aptcache=`apt-cache search $debpkgname`
-  if [ "$test_aptcache" ]; then
-    test_aptcache=`apt-cache show $debpkgname`
-    if [ ! "`echo $test_aptcache | grep -i no.packages`" ]; then
-      ver=`apt-cache show $debpkgname | grep ^Version: | awk ' { print $2 }'`
-      ver=`echo $ver | tail -1 | sed s/"[-~].*"// | sed s/".*:"// | sed s/".dfsg*"//`
-      if [ $ver ] ; then vera=$ver ; fi
-    fi
-  fi
-
-  debian_dep_ver_result="$veri $vera"
-}
-
-freebsd_dep_ver()
-{
-  freebsd_dep_ver_result=
-  pkgname=$1
-  veri=none
-  vera=unknown # freebsd can't easily + reliably determine remote package versions
-  ver=
-
-  # translate pkgname to freebsd packagename
-  set_default_package_map
-  boost=boost-libs
-  eigen=eigen
-  imagemagick=ImageMagick
-  make=gmake
-  qt4=qt4-corelib
-  freebsd_pkgname=`eval echo "$"$pkgname`
-
-  if [ ! $freebsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
-
-  debug $pkgname". freebsd name:" $freebsd_pkgname
-  if [ ! "`command -v pkg_info`" ]; then
-    echo command pkg_info not found. cannot proceed.
-    return
-  fi
-  # examples of freebsd package names
-  # python-2.7,2  cmake-2.8.6_1 boost-libs-1.45.0_1
-  test_pkginfo=`pkg_info | grep $freebsd_pkgname`
-  if [ "$test_pkginfo" ]; then
-    debug $test_pkginfo
-    ver=`echo $test_pkginfo | awk '{print $1}' | sed s/"[_,].*"//`
-    ver=`echo $ver | sed s/"$freebsd_pkgname"-//`
-  fi
-  if [ $pkgname = "gcc" ]; then
-    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
-  fi
-  if [ $ver ]; then veri=$ver; fi
-  freebsd_dep_ver_result="$veri $vera"
-}
-
-openbsd_dep_ver()
-{
-  openbsd_dep_ver_result=
-  pkgname=$1
-  veri=none
-  vera=unknown # openbsd can't easily + reliably determine remote package versions
-  ver=
-
-  # translate pkgname to openbsd packagename
-  set_default_package_map
-  eigen=eigen2
-  imagemagick=ImageMagick
-  make=gmake
-  openbsd_pkgname=`eval echo "$"$pkgname`
-
-  if [ ! $openbsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
-
-  debug $pkgname". openbsd name:" $openbsd_pkgname
-  if [ ! "`command -v pkg_info`" ]; then
-    echo command pkg_info not found. cannot proceed.
-    return
-  fi
-
-  # system
-  # examples of openbsd package names
-  # python-2.7  cmake-2.8.6p2 boost-libs-1.45.0p0
-  test_pkginfo=`pkg_info -A | grep $openbsd_pkgname`
-  if [ "$test_pkginfo" ]; then
-    debug $test_pkginfo
-    ver=`echo $test_pkginfo | awk '{print $1}' `
-    ver=`echo $ver | sed s/"$openbsd_pkgname"-// | sed s/p[0-9]*//`
-    if [ $ver ]; then veri=$ver; fi
-  fi
-  if [ $pkgname = "gcc" ]; then
-    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
-    if [ $ver ]; then veri=$ver; fi
-  fi
-
-  openbsd_dep_ver_result="$veri $vera"
-}
-
-
-netbsd_dep_ver()
-{
-  netbsd_dep_ver_result=
-  pkgname=$1
-  veri=none
-  vera=none
-  ver=
-
-  # translate pkgname to netbsd packagename
-  set_default_package_map
-  imagemagick=ImageMagick
-  boost=boost-libs
-  python=python27
-  eigen=eigen
-  make=gmake
-  git=scmgit
-  netbsd_pkgname=`eval echo "$"$pkgname`
-
-  if [ ! $netbsd_pkgname ]; then echo "unknown package" $pkgname; return; fi
-
-  debug $pkgname". netbsd name:" $netbsd_pkgname
-  if [ ! "`command -v pkgin`" ]; then
-    echo command pkgin not found. cannot proceed.
-    return
-  fi
-
-  # system
-  # examples of netbsd package names
-  # zsh-4.3.15nb1
-  test_pkgin=`pkgin list | grep $netbsd_pkgname`
-  if [ "$test_pkgin" ]; then
-    debug system check - $test_pkgin
-    ver=`pkgin list $netbsd_pkgname | grep "$netbsd_pkgname" | tail -1`
-    debug strip 1 $ver
-    ver=`echo $ver | awk '{print $1}' | sed s/.*-// | sed s/nb[0-9]*//`
-    debug strip 2 $ver
-    if [ $ver ]; then veri=$ver; fi
-  fi
-  if [ $pkgname = "gcc" ]; then
-    ver=`gcc -v 2>&1 | grep -i version | awk '{print $3}'`
-    if [ $ver ]; then veri=$ver; fi
-    vera=unknown
-  fi
-
-  # Available
-  ver=
-  test_pkgin=`pkgin pkg-descr $netbsd_pkgname 2>&1 | grep -i ^information`
-  # make ftp://netbsd.org/etc/etc/etc/package-x.y.z.tgz into x.y.z
-  if [ "$test_pkgin" ]; then
-    debug available check $test_pkgin
-    ver=`echo $test_pkgin | awk '{print $3}' | tail -1`
-    debug stripped $ver
-    ver=`basename $ver | sed s/"^.*-"// | sed s/://`
-    debug basename $ver
-    ver=`echo $ver | sed s/.tgz$// | sed s/.bz2$// | sed s/.xz$//`
-    ver=`echo $ver | sed s/nb[0-9]*//`
-    debug strip2 $ver
-  fi
-  if [ $ver ]; then vera=$ver; fi
-
-  netbsd_dep_ver_result="$veri $vera"
-}
-
-
-
-fedora_dep_ver()
-{
-  fedora_dep_ver_result=
-  pkgname=$1
-  veri=none
-  vera=unknown # fedora can't easily + reliably determine remote package versions
-  ver=
-
-  # translate pkgname to fedora packagename
-  set_default_package_map
-  cgal=CGAL-devel
-  eigen=eigen2-devel
-  qt4=qt-devel
-  imagemagick=ImageMagick
-  for pn in  boost gmp mpfr glew; do eval $pn=$pn"-devel" ; done
-  fedora_pkgname=`eval echo "$"$pkgname`
-
-  if [ ! $fedora_pkgname ]; then echo "unknown package" $pkgname; return; fi
-
-  debug $pkgname". fedora name:" $fedora_pkgname
-  if [ ! "`command -v yum`" ]; then
-    echo command yum not found. cannot proceed.
-    return
-  fi
-
-  test_yum=`yum info $fedora_pkgname 2>&1`
-  if [ "$test_yum" ]; then
-    debug $test_yum
-    ver=`yum info $fedora_pkgname 2>&1 | grep ^Version | awk '{print $3}' `
-    if [ $ver ]; then veri=$ver ; fi
-  else
-    debug test_yum failed on $pkgname
-  fi
-  fedora_dep_ver_result="$veri $vera"
-}
-
-
-
-dep_ver()
-{
-  dep_ver_result=
-
-  if [ "`uname | grep Linux`" ]; then
-    if [ "`cat /etc/issue | grep -i 'ubuntu\|debian'`" ]; then
-      debian_dep_ver $*
-      dep_ver_result=$debian_dep_ver_result
-    elif [ "`cat /etc/issue | grep -i 'Red.Hat\|Fedora'`" ]; then
-      fedora_dep_ver $*
-      dep_ver_result=$fedora_dep_ver_result
-    else
-      echo unknown linux system. cannot proceed
-      return
-    fi
-  elif [ "`uname | grep FreeBSD`" ]; then
-    freebsd_dep_ver $*
-    dep_ver_result=$freebsd_dep_ver_result
-  elif [ "`uname | grep NetBSD`" ]; then
-    netbsd_dep_ver $*
-    dep_ver_result=$netbsd_dep_ver_result
-  elif [ "`uname | grep OpenBSD`" ]; then
-    openbsd_dep_ver $*
-    dep_ver_result=$openbsd_dep_ver_result
-  elif [ "`command -v apt-cache`" ]; then
-    echo cant determine system type. assuming debian because apt-cache exists
-    debian_dep_ver $*
-    dep_ver_result=$debian_dep_ver_result
-  else
-    echo unknown system type. cannot proceed
-  fi
-}
 
 
 
@@ -704,6 +739,7 @@ main()
 {
   deps="qt4 cgal gmp cmake mpfr boost opencsg glew eigen gcc"
   deps="$deps imagemagick python bison flex git curl make"
+  #deps="eigen glew opencsg"
   pretty_print title
   for dep in $deps; do
     debug "processing $dep"
