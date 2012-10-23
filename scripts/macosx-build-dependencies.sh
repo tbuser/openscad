@@ -179,9 +179,9 @@ build_boost()
   echo "Building boost" $version "..."
   cd $BASEDIR/src
   rm -rf boost_$bversion
-#  if [ ! -f boost_$bversion.tar.bz2 ]; then
-#    curl -LO http://downloads.sourceforge.net/project/boost/boost/$version/boost_$bversion.tar.bz2
-#  fi
+  if [ ! -f boost_$bversion.tar.bz2 ]; then
+    curl -LO http://downloads.sourceforge.net/project/boost/boost/$version/boost_$bversion.tar.bz2
+  fi
   tar xjf boost_$bversion.tar.bz2
   cd boost_$bversion
   # We only need the thread and program_options libraries
@@ -214,9 +214,9 @@ build_cgal()
   cd $BASEDIR/src
   rm -rf CGAL-$version
   if [ ! -f CGAL-$version.tar.gz ]; then
-    # 4.1-beta1 curl -O https://gforge.inria.fr/frs/download.php/31348/CGAL-$version.tar.gz
-    # 4.0.2
-    curl -O https://gforge.inria.fr/frs/download.php/31175/CGAL-$version.tar.gz
+    # 4.1-beta1
+    curl -O https://gforge.inria.fr/frs/download.php/31348/CGAL-$version.tar.gz
+    # 4.0.2 curl -O https://gforge.inria.fr/frs/download.php/31175/CGAL-$version.tar.gz
     # 4.0 curl -O https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.gz
     # 3.9 curl -O https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.gz
     # 3.8 curl -O https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.gz
@@ -365,8 +365,8 @@ mkdir -p $SRCDIR $DEPLOYDIR
 build_eigen 3.1.1
 build_gmp 5.0.5
 build_mpfr 3.1.1
-build_boost 1.50.0
+build_boost 1.51.0
 # NB! For CGAL, also update the actual download URL in the function
-build_cgal 4.0.2
+build_cgal 4.1-beta1
 build_glew 1.9.0
 build_opencsg 1.3.2
