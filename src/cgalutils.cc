@@ -81,7 +81,7 @@ public:
 			const CGALPoint &p = vertices[i];
 			B.add_vertex(p);
 #ifdef GEN_SURFACE_DEBUG
-			printf("%d: %f %f %f\n", i, p[0], p[1], p[2]);
+			printf("%d: %f %f %f\n", i, p.x().to_double(), p.y().to_double(), p.z().to_double());
 #endif
 		}
 
@@ -136,7 +136,7 @@ CGAL_Polyhedron *createPolyhedronFromPolySet(const PolySet &ps)
 		CGAL_Build_PolySet builder(ps);
 		P->delegate(builder);
 	}
-	catch (CGAL::Assertion_exception e) {
+	catch (const CGAL::Assertion_exception &e) {
 		PRINTB("CGAL error in CGAL_Build_PolySet: %s", e.what());
 		delete P;
 		P = NULL;
