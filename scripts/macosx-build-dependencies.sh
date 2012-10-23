@@ -9,6 +9,7 @@
 # Usage: macosx-build-dependencies.sh [-6l]
 #  -6   Build only 64-bit binaries
 #  -l   Force use of LLVM compiler
+#  -c   Force use of clang compiler
 #
 # Prerequisites:
 # - MacPorts: curl, cmake
@@ -26,14 +27,18 @@ DEPLOYDIR=$BASEDIR/install
 MAC_OSX_VERSION_MIN=10.5
 OPTION_32BIT=true
 OPTION_LLVM=false
+OPTION_CLANG=false
+OPTION_GCC=false
+DETECTED_LION=false
 export QMAKESPEC=macx-g++
 
 printUsage()
 {
-  echo "Usage: $0 [-6l]"
+  echo "Usage: $0 [-6lc]"
   echo
   echo "  -6   Build only 64-bit binaries"
   echo "  -l   Force use of LLVM compiler"
+  echo "  -c   Force use of clang compiler"
 }
 
 # Hack warning: gmplib is built separately in 32-bit and 64-bit mode
@@ -187,6 +192,9 @@ build_boost()
   if $OPTION_LLVM; then
     BOOST_TOOLSET="toolset=darwin-llvm"
     echo "using darwin : llvm : llvm-g++ ;" >> tools/build/v2/user-config.jam 
+  elif $OPTION_CLANG; then
+    BOOST_TOOLSET="toolset=clang"
+    echo "using clang ;" >> tools/build/v2/user-config.jam 
   fi
   ./b2 -d+2 $BOOST_TOOLSET cflags="-mmacosx-version-min=$MAC_OSX_VERSION_MIN -arch x86_64 $BOOST_EXTRA_FLAGS" linkflags="-mmacosx-version-min=$MAC_OSX_VERSION_MIN -arch x86_64 $BOOST_EXTRA_FLAGS" install
   install_name_tool -id $DEPLOYDIR/lib/libboost_thread.dylib $DEPLOYDIR/lib/libboost_thread.dylib 
@@ -206,8 +214,9 @@ build_cgal()
   cd $BASEDIR/src
   rm -rf CGAL-$version
   if [ ! -f CGAL-$version.tar.gz ]; then
-      # 4.0.2
-      curl -O https://gforge.inria.fr/frs/download.php/31175/CGAL-$version.tar.gz
+    # 4.1-beta1 curl -O https://gforge.inria.fr/frs/download.php/31348/CGAL-$version.tar.gz
+    # 4.0.2
+    curl -O https://gforge.inria.fr/frs/download.php/31175/CGAL-$version.tar.gz
     # 4.0 curl -O https://gforge.inria.fr/frs/download.php/30387/CGAL-$version.tar.gz
     # 3.9 curl -O https://gforge.inria.fr/frs/download.php/29125/CGAL-$version.tar.gz
     # 3.8 curl -O https://gforge.inria.fr/frs/download.php/28500/CGAL-$version.tar.gz
@@ -241,7 +250,7 @@ build_glew()
   if $OPTION_32BIT; then
     GLEW_EXTRA_FLAGS="-arch i386"
   fi
-  make GLEW_DEST=$DEPLOYDIR CFLAGS.EXTRA="-no-cpp-precomp -dynamic -fno-common -mmacosx-version-min=$MAC_OSX_VERSION_MIN $GLEW_EXTRA_FLAGS -arch x86_64" LDFLAGS.EXTRA="-mmacosx-version-min=$MAC_OSX_VERSION_MIN $GLEW_EXTRA_FLAGS -arch x86_64" STRIP= install
+  make GLEW_DEST=$DEPLOYDIR CC=$CC CFLAGS.EXTRA="-no-cpp-precomp -dynamic -fno-common -mmacosx-version-min=$MAC_OSX_VERSION_MIN $GLEW_EXTRA_FLAGS -arch x86_64" LDFLAGS.EXTRA="-mmacosx-version-min=$MAC_OSX_VERSION_MIN $GLEW_EXTRA_FLAGS -arch x86_64" STRIP= install
 }
 
 build_opencsg()
@@ -301,33 +310,54 @@ if [ ! -f $OPENSCADDIR/openscad.pro ]; then
   exit 0
 fi
 
-while getopts '6l' c
+while getopts '6lc' c
 do
   case $c in
     6) OPTION_32BIT=false;;
     l) OPTION_LLVM=true;;
+    c) OPTION_CLANG=true;;
   esac
 done
 
 OSVERSION=`sw_vers -productVersion | cut -d. -f2`
 if [[ $OSVERSION -ge 7 ]]; then
   echo "Detected Lion or later"
-  export LION=1
+  DETECTED_LION=true
+else
+  echo "Detected Snow Leopard or earlier"
+fi
+
+USING_LLVM=false
+USING_GCC=false
+USING_CLANG=false
+if $OPTION_LLVM; then
+  USING_LLCM=true
+elif $OPTION_GCC; then
+  USING_GCC=true
+elif $OPTION_CLANG; then
+  USING_CLANG=true
+elif $DETECTED_LION; then
+  USING_GCC=true
+fi
+
+if $USING_LLVM; then
+  echo "Using gcc LLVM compiler"
+  export CC=llvm-gcc
+  export CXX=llvm-g++
+  export QMAKESPEC=macx-llvm
+elif $USING_GCC; then
+  echo "Using gcc compiler"
   export CC=gcc
   export CXX=g++
   export CPP=cpp
   # Somehow, qmake in Qt-4.8.2 doesn't detect Lion's gcc and falls back into
   # project file mode unless manually given a QMAKESPEC
   export QMAKESPEC=macx-llvm
-else
-  echo "Detected Snow Leopard or earlier"
-fi
-
-if $OPTION_LLVM; then
-  echo "Using LLVM compiler"
-  export CC=llvm-gcc
-  export CXX=llvm-g++
-  export QMAKESPEC=macx-llvm
+elif $USING_CLANG; then
+  echo "Using clang compiler"
+  export CC=clang
+  export CXX=clang++
+  export QMAKESPEC=unsupported/macx-clang
 fi
 
 echo "Using basedir:" $BASEDIR
