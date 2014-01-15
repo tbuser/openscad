@@ -24,7 +24,7 @@ projection, Perspective and Orthogonal.
 class Camera
 {
 public:
-	enum CameraType { NONE, GIMBAL, VECTOR } type;
+	enum CameraType { NONE, GIMBAL, VECTOR, SIMPLE } type;
 	enum ProjectionType { ORTHOGONAL, PERSPECTIVE } projection;
 	Camera() {
 		type = Camera::NONE;
@@ -41,24 +41,32 @@ public:
 			center << 0,0,0;
 			Eigen::Vector3d cameradir(1, 1, -0.5);
 			eye = center - 500 * cameradir;
+		} else if ( e == Camera::SIMPLE ) {
+      rotx = 55;
+      rotz = 25;
 		}
 		pixel_width = RenderSettings::inst()->img_width;
 		pixel_height = RenderSettings::inst()->img_height;
 		projection = Camera::PERSPECTIVE;
 	}
 
-	void setup( std::vector<double> params ) {
-		if ( params.size() == 7 ) {
-			type = Camera::GIMBAL;
-			object_trans << params[0], params[1], params[2];
-			object_rot << params[3], params[4], params[5];
-			viewer_distance = params[6];
+	void setup( std::vector<double> params )
+	{
+		if ( params.size() == 2 ) {
+			type = Camera::SIMPLE;
+      rotx = params[0];
+      rotz = params[1];
 		} else if ( params.size() == 6 ) {
 			type = Camera::VECTOR;
 			eye << params[0], params[1], params[2];
 			center << params[3], params[4], params[5];
+		} else if ( params.size() == 7 ) {
+			type = Camera::GIMBAL;
+			object_trans << params[0], params[1], params[2];
+			object_rot << params[3], params[4], params[5];
+		  viewer_distance = params[6];
 		} else {
-			assert( "Gimbal cam needs 7 numbers, Vector camera needs 6" );
+			assert( "Simple cam needs 2 numbers, Vector camera needs 6, Gimbal cam needs 7 numbers" );
 		}
 	}
 
@@ -71,6 +79,10 @@ public:
 	Eigen::Vector3d object_trans;
 	Eigen::Vector3d object_rot;
 	double viewer_distance;
+
+  // Simplecam
+  double rotx;
+  double rotz;
 
 	unsigned int pixel_width;
 	unsigned int pixel_height;

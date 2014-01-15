@@ -444,8 +444,10 @@ build_gmp 5.1.2
 build_mpfr 3.1.2
 build_boost 1.53.0
 # NB! For CGAL, also update the actual download URL in the function
-build_cgal 4.2
-build_glew 1.9.0
+build_cgal 4.3
+build_glew 1.10.0
+build_gettext 0.18.3.1
+build_glib2 2.38.2
 build_opencsg 1.3.2
 if $OPTION_DEPLOY; then
   build_sparkle 0ed83cf9f2eeb425d4fdd141c01a29d843970c20

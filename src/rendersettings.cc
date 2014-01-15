@@ -1,4 +1,5 @@
 #include "rendersettings.h"
+#include "printutils.h"
 
 RenderSettings *RenderSettings::inst(bool erase)
 {
@@ -12,7 +13,7 @@ RenderSettings *RenderSettings::inst(bool erase)
 
 RenderSettings::RenderSettings()
 {
-	openCSGTermLimit = 2000;
+	openCSGTermLimit = 200000;
 	far_gl_clip_limit = 100000.0;
 	img_width = 512;
 	img_height = 512;

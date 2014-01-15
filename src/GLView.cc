@@ -259,8 +259,10 @@ void GLView::initializeGL()
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   GLfloat light_diffuse[] = {1.0, 1.0, 1.0, 1.0};
+  // GLfloat light_position0[] = {-1.0, -1.0, +1.0, 0.0};
+  // GLfloat light_position1[] = {+1.0, +1.0, -1.0, 0.0};
   GLfloat light_position0[] = {-1.0, -1.0, +1.0, 0.0};
-  GLfloat light_position1[] = {+1.0, +1.0, -1.0, 0.0};
+  GLfloat light_position1[] = {+1.0, -1.0, -3.5, 0.0};
 
   glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
   glLightfv(GL_LIGHT0, GL_POSITION, light_position0);
@@ -288,7 +290,8 @@ void GLView::vectorCamPaintGL()
   glMatrixMode(GL_MODELVIEW);
   glLoadIdentity();
 
-  glClearColor(1.0f, 1.0f, 0.92f, 1.0f);
+  Color4f bgcol = RenderSettings::inst()->color(RenderSettings::BACKGROUND_COLOR);
+  glClearColor(bgcol[0], bgcol[1], bgcol[2], 1.0f);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
