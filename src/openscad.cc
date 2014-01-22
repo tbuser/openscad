@@ -89,7 +89,7 @@ static void help(const char *progname)
           "%*s[ --background_color=255,255,229 ] \\\n"
           "%*s[ --model_color=249,215,44 ] \\\n"
 	        "%*sfilename\n",
-					progname, tab, "", tab, "", tab, "", tab, "", tab, "");
+					progname, tab, "", tab, "", tab, "", tab, "", tab, "", tab, "", tab, "", tab, "");
 	exit(1);
 }
 
