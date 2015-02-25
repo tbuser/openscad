@@ -53,6 +53,7 @@
 #include "csgterm.h"
 #include "CSGTermEvaluator.h"
 #include "CsgInfo.h"
+#include <opencsg.h>
 
 #include <sstream>
 
@@ -109,14 +110,17 @@ static void help(const char *progname)
 	PRINTB("Usage: %1% [ -o output_file [ -d deps_file ] ]\\\n"
          "%2%[ -m make_command ] [ -D var=val [..] ] \\\n"
          "%2%[ --version ] [ --info ] \\\n"
-         "%2%[ --camera=translatex,y,z,rotx,y,z,dist | \\\n"
-         "%2%  --camera=eyex,y,z,centerx,y,z ] \\\n"
+         "%2%[ --camera=rotx,rotz | \\\n"
+         "%2%  --camera=eyex,y,z,centerx,y,z | \\\n"
+         "%2%  --camera=translatex,y,z,rotx,y,z,dist ] \\\n"
          "%2%[ --imgsize=width,height ] [ --projection=(o)rtho|(p)ersp] \\\n"
          "%2%[ --render | --preview[=throwntogether] ] \\\n"
          "%2%[ --csglimit=num ] \\\n"
 #ifdef ENABLE_EXPERIMENTAL
          "%2%[ --enable=<feature> ] \\\n"
 #endif
+         "%2%[ --background_color=255,255,229 ] \\\n"
+         "%2%[ --model_color=249,215,44 ] \\\n"
          "%2%filename\n",
  				 progname % (const char *)tabstr);
 	exit(1);
@@ -150,17 +154,74 @@ static void info()
 Camera get_camera( po::variables_map vm )
 {
 	Camera camera;
+  std::map<RenderSettings::RenderColor, Color4f> color_settings;
+
+  if (vm.count("background_color")) {
+		vector<string> strs;
+		split(strs, vm["background_color"].as<string>(), is_any_of(","));
+		if (strs.size() == 3) {
+      color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+	  } else {
+      PRINT("Background Color requires 3 numbers\n");
+      exit(1);
+		}
+  } else {
+    color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xff, 0xff, 0xe5);
+  }
+
+  if (vm.count("model_color")) {
+		vector<string> strs;
+		split(strs, vm["model_color"].as<string>(), is_any_of(","));
+		if (strs.size() == 3) {
+      color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+      color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+      color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+      color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+	  } else {
+      PRINT("Model Color requires 3 numbers\n");
+      exit(1);
+		}
+  } else {
+    color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+    color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+    color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+    color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+  }
+
+  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xff, 0xff, 0xe5);
+  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xf2, 0xf2, 0xf2);
+  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(242, 242, 242);
+
+  // color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+  // color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+  // color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0x15, 0x58, 0xac);
+  // color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x15, 0x58, 0xac);
+
+  // color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+  // color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+  // color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0x15, 0x58, 0xac);
+  // color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x15, 0x58, 0xac);
+
+  color_settings[RenderSettings::CGAL_FACE_2D_COLOR] = Color4f(0x00, 0xbf, 0x99);
+  color_settings[RenderSettings::CGAL_EDGE_FRONT_COLOR] = Color4f(0xff, 0x00, 0x00);
+  color_settings[RenderSettings::CGAL_EDGE_BACK_COLOR] = Color4f(0xff, 0x00, 0x00);
+  color_settings[RenderSettings::CGAL_EDGE_2D_COLOR] = Color4f(0xff, 0x00, 0x00);
+  color_settings[RenderSettings::CROSSHAIR_COLOR] = Color4f(0x80, 0x00, 0x00);
+  RenderSettings::inst()->setColors(color_settings);
+  // TODO: Forcing for now... make this a command line option?
+  OpenCSG::setOption(OpenCSG::AlgorithmSetting, OpenCSG::Goldfeather);
 
 	if (vm.count("camera")) {
 		vector<string> strs;
 		vector<double> cam_parameters;
 		split(strs, vm["camera"].as<string>(), is_any_of(","));
-		if ( strs.size() == 6 || strs.size() == 7 ) {
+		if ( strs.size() == 2 || strs.size() == 6 || strs.size() == 7 ) {
 			BOOST_FOREACH(string &s, strs)
 				cam_parameters.push_back(lexical_cast<double>(s));
 			camera.setup( cam_parameters );
 		} else {
-			PRINT("Camera setup requires either 7 numbers for Gimbal Camera\n");
+      PRINT("Camera setup requires either 2 numbers for Simple Camera\n");
+			PRINT("or 7 numbers for Gimbal Camera\n");
 			PRINT("or 6 numbers for Vector Camera\n");
 			exit(1);
 		}
@@ -503,7 +564,7 @@ int gui(vector<string> &inputFiles, const fs::path &original_path, int argc, cha
 	QCoreApplication::setOrganizationDomain("openscad.org");
 	QCoreApplication::setApplicationName("OpenSCAD");
 	QCoreApplication::setApplicationVersion(TOSTRING(OPENSCAD_VERSION));
-	
+
 	const QString &app_path = app.applicationDirPath();
 
 	QDir exdir(app_path);
@@ -598,7 +659,9 @@ int main(int argc, char **argv)
 		("preview", po::value<string>(), "if exporting a png image, do an OpenCSG(default) or ThrownTogether preview")
 		("csglimit", po::value<unsigned int>(), "if exporting a png image, stop rendering at the given number of CSG elements")
 		("camera", po::value<string>(), "parameters for camera when exporting png")
-	        ("imgsize", po::value<string>(), "=width,height for exporting png")
+		("background_color", po::value<string>(), "background color when exporting png")
+		("model_color", po::value<string>(), "model color color when exporting png")
+	  ("imgsize", po::value<string>(), "=width,height for exporting png")
 		("projection", po::value<string>(), "(o)rtho or (p)erspective when exporting png")
 		("o,o", po::value<string>(), "out-file")
 		("s,s", po::value<string>(), "stl-file")
@@ -655,7 +718,7 @@ int main(int argc, char **argv)
 		if (output_file) help(argv[0]);
 		output_file = vm["s"].as<string>().c_str();
 	}
-	if (vm.count("x")) { 
+	if (vm.count("x")) {
 		printDeprecation("DEPRECATED: The -x option is deprecated. Use -o instead.\n");
 		if (output_file) help(argv[0]);
 		output_file = vm["x"].as<string>().c_str();
@@ -723,4 +786,3 @@ int main(int argc, char **argv)
 
 	return rc;
 }
-
