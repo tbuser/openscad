@@ -55,6 +55,10 @@ public:
 	// (normally it points at 0,0,0 or at given coordinates)
 	bool autocenter;
 
+	// Simplecam
+	double rotx;
+	double rotz;
+
 	unsigned int pixel_width;
 	unsigned int pixel_height;
 

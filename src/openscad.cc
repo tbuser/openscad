@@ -56,7 +56,7 @@
 #include "CSGTermEvaluator.h"
 #include "CsgInfo.h"
 
-#include <opencsg.h>
+#include "opencsg.h"
 
 #include <sstream>
 
@@ -122,7 +122,7 @@ public:
 
 static void help(const char *progname, bool failure = false)
 {
-  int tablen = strlen(progname)+11;
+  int tablen = strlen(progname)+9;
   char tabstr[tablen+1];
   for (int i=0;i<tablen;i++) tabstr[i] = ' ';
   tabstr[tablen] = '\0';
@@ -138,9 +138,7 @@ static void help(const char *progname, bool failure = false)
          "%2%[ --viewall ] \\\n"
          "%2%[ --imgsize=width,height ] [ --projection=(o)rtho|(p)ersp] \\\n"
          "%2%[ --render | --preview[=throwntogether] ] \\\n"
-         "%2%[ --background_color=255,255,229 ] \\\n"
-         "%2%[ --model_color=249,215,44 ] \\\n"
-         "%2%[ --colorscheme=[Cornfield|Sunset|Metallic|Starnight|BeforeDawn|Nature|DeepOcean] ] \\\n"
+         "%2%[ --colorscheme=[Cornfield|Sunset|Metallic|Starnight|BeforeDawn|Nature|DeepOcean|Customizer] ] \\\n"
          "%2%[ --csglimit=num ]"
 #ifdef ENABLE_EXPERIMENTAL
          " [ --enable=<feature> ]"
@@ -201,60 +199,7 @@ void localization_init() {
 Camera get_camera(po::variables_map vm)
 {
 	Camera camera;
-  std::map<RenderSettings::RenderColor, Color4f> color_settings;
 
-  if (vm.count("background_color")) {
-		vector<string> strs;
-		split(strs, vm["background_color"].as<string>(), is_any_of(","));
-		if (strs.size() == 3) {
-      color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
-	  } else {
-      PRINT("Background Color requires 3 numbers\n");
-      exit(1);
-		}
-  } else {
-    color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xff, 0xff, 0xe5);
-  }
-
-  if (vm.count("model_color")) {
-		vector<string> strs;
-		split(strs, vm["model_color"].as<string>(), is_any_of(","));
-		if (strs.size() == 3) {
-      color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
-      color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
-      color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
-      color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
-	  } else {
-      PRINT("Model Color requires 3 numbers\n");
-      exit(1);
-		}
-  } else {
-    color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
-    color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
-    color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
-    color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
-  }
-
-  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xff, 0xff, 0xe5);
-  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xf2, 0xf2, 0xf2);
-  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(242, 242, 242);
-
-  // color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
-  // color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
-  // color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0x15, 0x58, 0xac);
-  // color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x15, 0x58, 0xac);
-
-  // color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
-  // color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
-  // color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0x15, 0x58, 0xac);
-  // color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x15, 0x58, 0xac);
-
-  color_settings[RenderSettings::CGAL_FACE_2D_COLOR] = Color4f(0x00, 0xbf, 0x99);
-  color_settings[RenderSettings::CGAL_EDGE_FRONT_COLOR] = Color4f(0xff, 0x00, 0x00);
-  color_settings[RenderSettings::CGAL_EDGE_BACK_COLOR] = Color4f(0xff, 0x00, 0x00);
-  color_settings[RenderSettings::CGAL_EDGE_2D_COLOR] = Color4f(0xff, 0x00, 0x00);
-  color_settings[RenderSettings::CROSSHAIR_COLOR] = Color4f(0x80, 0x00, 0x00);
-  RenderSettings::inst()->setColors(color_settings);
   // TODO: Forcing for now... make this a command line option?
   OpenCSG::setOption(OpenCSG::AlgorithmSetting, OpenCSG::Goldfeather);
 
