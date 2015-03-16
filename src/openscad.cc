@@ -56,6 +56,8 @@
 #include "CSGTermEvaluator.h"
 #include "CsgInfo.h"
 
+#include <opencsg.h>
+
 #include <sstream>
 
 #include "Camera.h"
@@ -120,7 +122,7 @@ public:
 
 static void help(const char *progname, bool failure = false)
 {
-  int tablen = strlen(progname)+8;
+  int tablen = strlen(progname)+11;
   char tabstr[tablen+1];
   for (int i=0;i<tablen;i++) tabstr[i] = ' ';
   tabstr[tablen] = '\0';
@@ -129,12 +131,15 @@ static void help(const char *progname, bool failure = false)
          "%2%[ -m make_command ] [ -D var=val [..] ] \\\n"
 	 "%2%[ --help ] print this help message and exit \\\n"
          "%2%[ --version ] [ --info ] \\\n"
-         "%2%[ --camera=translatex,y,z,rotx,y,z,dist | \\\n"
-         "%2%  --camera=eyex,y,z,centerx,y,z ] \\\n"
+         "%2%[ --camera=rotx,roty | \\\n"
+         "%2%  --camera=eyex,y,z,centerx,y,z | \\\n"
+         "%2%  --camera=translatex,y,z,rotx,y,z,dist ] \\\n"
          "%2%[ --autocenter ] \\\n"
          "%2%[ --viewall ] \\\n"
          "%2%[ --imgsize=width,height ] [ --projection=(o)rtho|(p)ersp] \\\n"
          "%2%[ --render | --preview[=throwntogether] ] \\\n"
+         "%2%[ --background_color=255,255,229 ] \\\n"
+         "%2%[ --model_color=249,215,44 ] \\\n"
          "%2%[ --colorscheme=[Cornfield|Sunset|Metallic|Starnight|BeforeDawn|Nature|DeepOcean] ] \\\n"
          "%2%[ --csglimit=num ]"
 #ifdef ENABLE_EXPERIMENTAL
@@ -196,12 +201,68 @@ void localization_init() {
 Camera get_camera(po::variables_map vm)
 {
 	Camera camera;
+  std::map<RenderSettings::RenderColor, Color4f> color_settings;
+
+  if (vm.count("background_color")) {
+		vector<string> strs;
+		split(strs, vm["background_color"].as<string>(), is_any_of(","));
+		if (strs.size() == 3) {
+      color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+	  } else {
+      PRINT("Background Color requires 3 numbers\n");
+      exit(1);
+		}
+  } else {
+    color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xff, 0xff, 0xe5);
+  }
+
+  if (vm.count("model_color")) {
+		vector<string> strs;
+		split(strs, vm["model_color"].as<string>(), is_any_of(","));
+		if (strs.size() == 3) {
+      color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+      color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+      color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+      color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(lexical_cast<int>(strs[0]), lexical_cast<int>(strs[1]), lexical_cast<int>(strs[2]));
+	  } else {
+      PRINT("Model Color requires 3 numbers\n");
+      exit(1);
+		}
+  } else {
+    color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+    color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+    color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+    color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+  }
+
+  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xff, 0xff, 0xe5);
+  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(0xf2, 0xf2, 0xf2);
+  // color_settings[RenderSettings::BACKGROUND_COLOR] = Color4f(242, 242, 242);
+
+  // color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+  // color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+  // color_settings[RenderSettings::OPENCSG_FACE_FRONT_COLOR] = Color4f(0x15, 0x58, 0xac);
+  // color_settings[RenderSettings::OPENCSG_FACE_BACK_COLOR] = Color4f(0x15, 0x58, 0xac);
+
+  // color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0xf9, 0xd7, 0x2c);
+  // color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x9d, 0xcb, 0x51);
+  // color_settings[RenderSettings::CGAL_FACE_FRONT_COLOR] = Color4f(0x15, 0x58, 0xac);
+  // color_settings[RenderSettings::CGAL_FACE_BACK_COLOR] = Color4f(0x15, 0x58, 0xac);
+
+  color_settings[RenderSettings::CGAL_FACE_2D_COLOR] = Color4f(0x00, 0xbf, 0x99);
+  color_settings[RenderSettings::CGAL_EDGE_FRONT_COLOR] = Color4f(0xff, 0x00, 0x00);
+  color_settings[RenderSettings::CGAL_EDGE_BACK_COLOR] = Color4f(0xff, 0x00, 0x00);
+  color_settings[RenderSettings::CGAL_EDGE_2D_COLOR] = Color4f(0xff, 0x00, 0x00);
+  color_settings[RenderSettings::CROSSHAIR_COLOR] = Color4f(0x80, 0x00, 0x00);
+  RenderSettings::inst()->setColors(color_settings);
+  // TODO: Forcing for now... make this a command line option?
+  OpenCSG::setOption(OpenCSG::AlgorithmSetting, OpenCSG::Goldfeather);
 
 	if (vm.count("camera")) {
 		vector<string> strs;
 		vector<double> cam_parameters;
 		split(strs, vm["camera"].as<string>(), is_any_of(","));
-		if ( strs.size()==6 || strs.size()==7 ) {
+		if ( strs.size() == 2 || strs.size()==6 || strs.size()==7 ) {
 			try {
 				BOOST_FOREACH(string &s, strs) cam_parameters.push_back(lexical_cast<double>(s));
 				camera.setup(cam_parameters);
@@ -210,8 +271,9 @@ Camera get_camera(po::variables_map vm)
 				PRINT("Camera setup requires numbers as parameters");
 			}
 		} else {
-			PRINT("Camera setup requires either 7 numbers for Gimbal Camera");
-			PRINT("or 6 numbers for Vector Camera");
+      PRINT("Camera setup requires either 2 numbers for Simple Camera\n");
+			PRINT("or 7 numbers for Gimbal Camera\n");
+			PRINT("or 6 numbers for Vector Camera\n");
 			exit(1);
 		}
 	}
@@ -291,12 +353,12 @@ void set_render_color_scheme(const std::string color_scheme, const bool exit_if_
 	if (color_scheme.empty()) {
 		return;
 	}
-	
+
 	if (ColorMap::inst()->findColorScheme(color_scheme)) {
 		RenderSettings::inst()->colorscheme = color_scheme;
 		return;
 	}
-		
+
 	if (exit_if_not_found) {
 		PRINTB("Unknown color scheme '%s'. Valid schemes:", color_scheme);
 		BOOST_FOREACH (const std::string &name, ColorMap::inst()->colorSchemeNames()) {
@@ -315,7 +377,7 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 	const std::string application_path = QApplication::instance()->applicationDirPath().toLocal8Bit().constData();
 #else
 	const std::string application_path = boosty::stringy(boosty::absolute(boost::filesystem::path(argv[0]).parent_path()));
-#endif	
+#endif
 	PlatformUtils::registerApplicationPath(application_path);
 	parser_init();
 	localization_init();
@@ -327,7 +389,7 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 	if (arg_info) {
 	    info();
 	}
-	
+
 	const char *stl_output_file = NULL;
 	const char *off_output_file = NULL;
 	const char *amf_output_file = NULL;
@@ -358,7 +420,7 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 	}
 
 	set_render_color_scheme(arg_colorscheme, true);
-	
+
 	// Top context - this context only holds builtins
 	ModuleContext top_ctx;
 	top_ctx.registerBuiltin();
@@ -512,7 +574,7 @@ int cmdline(const char *deps_output_file, const std::string &filename, Camera &c
 			if (!checkAndExport(root_geom, 2, OPENSCAD_DXF, dxf_output_file))
 				return 1;
 		}
-		
+
 		if (svg_output_file) {
 			if (!checkAndExport(root_geom, 2, OPENSCAD_SVG, svg_output_file))
 				return 1;
@@ -614,7 +676,7 @@ void dialogInitHandler(FontCacheInitializer *initializer, void *)
 	// Block, in case we're in a separate thread, or the dialog was closed by the user
 	futureWatcher.waitForFinished();
 
-	// We don't always receive the finished signal. We still need the signal to break 
+	// We don't always receive the finished signal. We still need the signal to break
 	// out of the exec() though.
 	QMetaObject::invokeMethod(mainw, "hideFontCacheDialog");
 }
@@ -646,10 +708,10 @@ int gui(vector<string> &inputFiles, const fs::path &original_path, int argc, cha
 #else
 	QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));
 #endif
-	
+
 	// Other global settings
 	qRegisterMetaType<shared_ptr<const Geometry> >();
-	
+
 	const QString &app_path = app.applicationDirPath();
 	PlatformUtils::registerApplicationPath(app_path.toLocal8Bit().constData());
 
@@ -694,7 +756,7 @@ int gui(vector<string> &inputFiles, const fs::path &original_path, int argc, cha
 	QGLFormat::setDefaultFormat(fmt);
 
 	set_render_color_scheme(arg_colorscheme, false);
-	
+
 	bool noInputFiles = false;
 	if (!inputFiles.size()) {
 		noInputFiles = true;
@@ -753,7 +815,7 @@ int main(int argc, char **argv)
 	int rc = 0;
 	bool isGuiLaunched = getenv("GUI_LAUNCHED") != 0;
 	StackCheck::inst()->init();
-	
+
 #ifdef Q_OS_MAC
 	if (isGuiLaunched) set_output_handler(CocoaUtils::nslog, NULL);
 #else
@@ -784,6 +846,8 @@ int main(int argc, char **argv)
 		("autocenter", "adjust camera to look at object center")
 		("viewall", "adjust camera to fit object")
 		("imgsize", po::value<string>(), "=width,height for exporting png")
+		("background_color", po::value<string>(), "background color when exporting png")
+		("model_color", po::value<string>(), "model color color when exporting png")
 		("projection", po::value<string>(), "(o)rtho or (p)erspective when exporting png")
 		("colorscheme", po::value<string>(), "colorscheme")
 		("debug", po::value<string>(), "special debug info")
@@ -850,7 +914,7 @@ int main(int argc, char **argv)
 		if (output_file) help(argv[0], true);
 		output_file = vm["s"].as<string>().c_str();
 	}
-	if (vm.count("x")) { 
+	if (vm.count("x")) {
 		printDeprecation("The -x option is deprecated. Use -o instead.\n");
 		if (output_file) help(argv[0], true);
 		output_file = vm["x"].as<string>().c_str();
