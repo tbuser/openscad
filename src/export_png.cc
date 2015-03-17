@@ -51,6 +51,8 @@ enum Previewer { OPENCSG, THROWNTOGETHER } previewer;
 
 void export_png_preview_common(Tree &tree, Camera &cam, std::ostream &output, Previewer previewer = OPENCSG)
 {
+	OpenCSG::setOption(OpenCSG::AlgorithmSetting, OpenCSG::Goldfeather);
+
 	PRINTD("export_png_preview_common");
 	CsgInfo csgInfo = CsgInfo();
     csgInfo.compile_chains(tree);
@@ -100,7 +102,7 @@ void export_png_preview_common(Tree &tree, Camera &cam, std::ostream &output, Pr
     // Vector3d cameradir(cos(angle1)-sin(angle1), sin(angle1)+cos(angle1), -0.95);
     Vector3d cameradir(cos(angle1)-sin(angle1), sin(angle1)+cos(angle1), zangle1);
     // cam.eye = cam.center - radius * 1.8 * cameradir;
-    cam.eye = cam.center - radius * 2.5 * cameradir;
+    cam.eye = cam.center - radius * 3.2 * cameradir;
 
 		cam.type = Camera::VECTOR;
   }

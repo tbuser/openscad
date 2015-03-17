@@ -200,9 +200,6 @@ Camera get_camera(po::variables_map vm)
 {
 	Camera camera;
 
-  // TODO: Forcing for now... make this a command line option?
-  OpenCSG::setOption(OpenCSG::AlgorithmSetting, OpenCSG::Goldfeather);
-
 	if (vm.count("camera")) {
 		vector<string> strs;
 		vector<double> cam_parameters;
